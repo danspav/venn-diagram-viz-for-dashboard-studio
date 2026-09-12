@@ -1,0 +1,24 @@
+{
+  "showTitleAndDescription": true,
+  "includeInToolbar": true,
+  "includeInVizSwitcher": true,
+  "showDrilldown": false,
+  "canSetTokens": [],
+  "hasEventHandlers": false,
+  "config": {
+    "name": "Venn Diagram Viz For Dashboard Studio",
+    "description": "A custom visualization for Splunk Dashboard Studio",
+    "category": "Custom",
+    "icon": null,
+    "dataContract": {
+      "requiredDataSources": ["primary"],
+      "optionalDataSources": []
+    },
+    "size": {
+      "initialWidth": 400,
+      "initialHeight": 300
+    },
+    "optionsSchema": {},
+    "editorConfig": []
+  }
+}

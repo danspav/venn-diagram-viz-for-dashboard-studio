@@ -1,0 +1,31 @@
+{
+	"name": "venn_diagram_viz_for_dashboard_studio",
+	"version": "0.1.0",
+	"description": "A custom visualization for Splunk Dashboard Studio",
+	"author": "Daniel Spavin",
+	"type": "module",
+	"scripts": {
+		"build": "node build.mjs --entry=visualization.jsx",
+		"build:prod": "NODE_ENV=production node build.mjs --entry=visualization.jsx",
+		"dev": "node build.mjs --entry=visualization.jsx --watch",
+		"preview": "node build.mjs --entry=visualization.jsx && node generate-theme-vars.mjs && storybook dev -p 6006",
+		"package": "node package.mjs"
+	},
+	"devDependencies": {
+		"@splunk/dashboard-studio-extension": "^1.0.0",
+		"@splunk/react-ui": "^5.9.0",
+		"@splunk/themes": "^1.4.0",
+		"@storybook/addon-essentials": "^8.0.0",
+		"@storybook/react": "^8.0.0",
+		"@storybook/react-vite": "^8.0.0",
+		"chalk": "^6.0.0",
+		"d3": "7.9.0",
+		"esbuild": "^0.27.3",
+		"react": "18.3.1",
+		"react-dom": "18.3.1",
+		"storybook": "^8.0.0",
+		"styled-components": "^5.3.10",
+		"tar": "^7.4.3",
+		"venn.js": "0.2.20"
+	}
+}

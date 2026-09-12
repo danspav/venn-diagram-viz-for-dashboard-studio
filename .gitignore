@@ -1,0 +1,8 @@
+node_modules/
+dist/
+stage/
+storybook-static/
+*.spl
+.DS_Store
+.env
+.env.local

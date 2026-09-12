@@ -1,0 +1,197 @@
+.viz-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    padding: 16px;
+    box-sizing: border-box;
+    font-family: var(--viz-fontFamily, 'Splunk Platform Sans', sans-serif);
+
+    &--empty {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+}
+
+.viz-message {
+    text-align: center;
+    padding: 20px;
+    color: var(--viz-contentColorMuted, #818d99);
+    max-width: 320px;
+}
+
+.viz-message-icon {
+    display: block;
+    margin: 0 auto 12px;
+}
+
+.viz-scroll {
+    overflow-x: auto;
+    overflow-y: auto;
+    height: calc(100% - 40px);
+    box-sizing: border-box;
+}
+
+.viz-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--viz-fontFamily, 'Splunk Platform Sans', sans-serif);
+}
+
+.viz-table thead tr {
+    background-color: var(--viz-backgroundColorSidebar, #eaedf1);
+    border-bottom: 2px solid var(--viz-borderColorWeak, #d6d6d6);
+}
+
+.viz-table th {
+    padding: 12px;
+    text-align: left;
+    font-weight: var(--viz-fontWeightBold, 700);
+    color: inherit;
+}
+
+.viz-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--viz-borderColorWeak, #d6d6d6);
+    color: inherit;
+}
+
+.viz-table tbody tr:nth-child(even) {
+    background-color: var(--viz-backgroundColorPage, #f2f4f5);
+}
+
+.viz-row-count {
+    margin-top: 12px;
+    color: var(--viz-contentColorMuted, #818d99);
+    font-size: var(--viz-fontSizeSmall, 0.75rem);
+}
+
+/* Packed-circle Venn — fixed dark palette per the validated prototype design
+   (not theme-adaptive; the sandboxed iframe doesn't inherit host page CSS
+   variables anyway, so these are set here rather than relying on Splunk's
+   light/dark tokens). */
+.venn-viz {
+    --venn-bg: #0d1117;
+    --venn-panel: #121820;
+    --venn-line: #263140;
+    --venn-text: #d5dde5;
+    --venn-muted: #7c8a99;
+    padding: 0;
+    background: var(--venn-bg);
+    color: var(--venn-text);
+    font-family: var(--sans, -apple-system, 'Segoe UI', sans-serif);
+}
+
+.venn-wrap {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.venn-wrap.legend-bottom {
+    flex-direction: column;
+}
+.venn-wrap.legend-top {
+    flex-direction: column-reverse;
+}
+.venn-wrap.legend-left {
+    flex-direction: row-reverse;
+}
+.venn-wrap.legend-right {
+    flex-direction: row;
+}
+
+.venn-chart-container {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.venn-chart-wrap {
+    position: relative;
+}
+
+.venn-chart-wrap .venn-circle path {
+    stroke-width: 1.5px;
+    fill-opacity: 0.06 !important;
+    stroke-opacity: 0.55;
+}
+
+.venn-chart-wrap .venn-circle text {
+    fill: var(--venn-muted);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.host-dot {
+    cursor: pointer;
+    stroke: rgba(0, 0, 0, 0.25);
+    stroke-width: 0.5px;
+}
+.host-dot:hover {
+    stroke: var(--venn-text);
+    stroke-width: 1.5px;
+}
+
+.venn-tooltip {
+    position: absolute;
+    left: 0;
+    top: 0;
+    text-align: left;
+    padding: 6px 10px;
+    font-family: 'SFMono-Regular', Consolas, monospace;
+    font-size: 11.5px;
+    background: #1a222d;
+    border: 1px solid var(--venn-line);
+    color: var(--venn-text);
+    border-radius: 5px;
+    pointer-events: none;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+    opacity: 0;
+    z-index: 10;
+    white-space: nowrap;
+}
+.venn-tooltip--visible {
+    opacity: 1;
+}
+.venn-tooltip-id {
+    font-weight: 600;
+}
+
+.venn-legend {
+    display: flex;
+    gap: 22px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+.venn-wrap.legend-bottom .venn-legend {
+    margin-top: 14px;
+}
+.venn-wrap.legend-top .venn-legend {
+    margin-bottom: 14px;
+}
+.venn-wrap.legend-left .venn-legend,
+.venn-wrap.legend-right .venn-legend {
+    flex-direction: column;
+    margin: 0 16px;
+}
+.venn-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12.5px;
+    color: var(--venn-text);
+}
+.venn-legend-swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    flex: 0 0 auto;
+}

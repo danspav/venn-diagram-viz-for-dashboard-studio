@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <style>
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+            html,
+            body {
+                width: 100vw;
+                height: 100vh;
+                overflow: hidden;
+            }
+            html[data-color-scheme='dark'] {
+                color-scheme: dark;
+            }
+            html[data-color-scheme='light'] {
+                color-scheme: light;
+            }
+            html {
+                background: var(--viz-backgroundColorPage, #f2f4f5);
+            }
+            #root {
+                width: 100%;
+                height: 100%;
+                position: relative;
+                overflow: hidden;
+            }
+            #__err {
+                position: fixed;
+                inset: 0;
+                background: rgba(20, 0, 0, 0.92);
+                color: #ff6b6b;
+                font: 12px/1.5 monospace;
+                padding: 16px;
+                white-space: pre-wrap;
+                word-break: break-all;
+                overflow: auto;
+                display: none;
+                z-index: 9999;
+            }
+        </style>
+        <link rel="stylesheet" href="/theme-vars.css" />
+    </head>
+    <body>
+        <div id="root"></div>
+        <div id="__err" role="alert" aria-live="assertive"></div>
+        <script type="module" src="/preview-frame.js"></script>
+    </body>
+</html>
