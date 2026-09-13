@@ -34,15 +34,39 @@ sets. This is a narrower, specialized viz (like a correlation/overlap tool),
 not a general-purpose chart type — don't try to generalize past 3 sets.
 
 ## SPL shape this needs to consume
+Long format, mostly positional (column order/count matter, not names):
+`item, category, value, tooltip` (4 columns), or with 2-3 category columns
+instead of 1 (5 or 6 columns total). Exception: a column literally named
+`value` or `tooltip` (case-insensitive) is used by name regardless of
+position — either or both may be named, anywhere in the row. The viz
+discovers the distinct category names across all rows itself
+(alphabetically, for stable color/region assignment across search
+refreshes). More than 3 is a soft limit, not an error: only the first 3
+(alphabetically) are shown, items exclusively in an excluded category are
+dropped, and a warning banner at the bottom names what got left out.
+
 ```spl
-| eval in_A=if(<condition_A>, 1, 0)
-| eval in_B=if(<condition_B>, 1, 0)
-| eval in_C=if(<condition_C>, 1, 0)
-| stats max(in_A) as in_A, max(in_B) as in_B, max(in_C) as in_C, count as alerts by host
+index=auth sourcetype=linux_secure action=failure
+| stats count as value by host
+| eval category="Failed logins", tooltip="Failed login attempts"
+| append
+    [ search index=endpoint sourcetype=malware_alerts
+      | stats count as value by host
+      | eval category="Malware alerts", tooltip="Malware detections" ]
+| append
+    [ search index=firewall sourcetype=pan:traffic action=blocked
+      | stats count as value by host
+      | eval category="Firewall blocks", tooltip="Blocked connections" ]
+| table host category value tooltip
 ```
-This gives one row per entity with region membership flags + an optional
-secondary metric (alerts) for dot sizing. The viz needs to group rows into
-the 7 possible region combinations (A / B / C / A,B / A,C / B,C / A,B,C).
+
+The same item naturally spans multiple rows here (one row per category,
+straight out of `stats ... by host, category`) rather than needing a
+pre-pivoted wide table — when that happens, memberships union across the
+item's rows, dot size sums `value` across them, and the tooltip keeps one
+line per row rather than picking or discarding one. See
+`visualizations/venn_diagram_viz_for_dashboard_studio/SPL.md` for the full
+reference including a synthetic `makeresults` dataset.
 
 ## Prototype status
 A working HTML/D3/venn.js prototype exists (browser-only, not yet ported to

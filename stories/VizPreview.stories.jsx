@@ -1,20 +1,41 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 
-// Shape matches the SPL in CLAUDE.md: one row per host with in_A/in_B/in_C
-// membership flags plus an optional secondary metric (alerts) for dot sizing.
+// Long shape (see SPL.md): one row per (item, single category) — the same
+// item spans multiple rows when it belongs to more than one category,
+// exactly the shape `stats ... by host, category` naturally produces.
+// Column NAMES don't matter, only order/count (item, category, value,
+// tooltip here — the 4-column form).
 const SAMPLE_DATA = {
-    fields: [{ name: 'host' }, { name: 'in_A' }, { name: 'in_B' }, { name: 'in_C' }, { name: 'alerts' }],
+    fields: [{ name: 'host' }, { name: 'category' }, { name: 'count' }, { name: 'description' }],
     columns: [
         [
-            'web-01', 'web-02', 'web-03', 'web-04', 'web-05', 'web-06', 'web-07', 'web-08',
+            'web-01', 'web-02', 'web-03', 'web-04', 'web-05', 'web-06',
             'db-01', 'db-02', 'db-03', 'db-04',
             'edge-01', 'edge-02', 'edge-03',
-            'app-01', 'app-02', 'app-03', 'app-04',
+            'app-01', 'app-01',
+            'app-02', 'app-02',
+            'app-03', 'app-03',
+            'app-04', 'app-04', 'app-04',
         ],
-        ['1', '1', '1', '1', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '1', '0', '0'],
-        ['0', '0', '0', '0', '0', '0', '1', '1', '1', '1', '1', '1', '1', '1', '0', '0', '0', '1', '1'],
-        ['0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1', '0', '0', '1', '1', '1', '0'],
-        ['4', '9', '3', '12', '6', '5', '14', '8', '7', '3', '11', '5', '17', '10', '6', '15', '9', '4', '3'],
+        [
+            'Failed logins', 'Failed logins', 'Failed logins', 'Failed logins', 'Failed logins', 'Failed logins',
+            'Malware alerts', 'Malware alerts', 'Malware alerts', 'Malware alerts',
+            'Firewall blocks', 'Firewall blocks', 'Firewall blocks',
+            'Failed logins', 'Malware alerts',
+            'Failed logins', 'Firewall blocks',
+            'Malware alerts', 'Firewall blocks',
+            'Failed logins', 'Malware alerts', 'Firewall blocks',
+        ],
+        ['4', '9', '3', '12', '6', '5', '7', '3', '11', '5', '17', '10', '6', '15', '9', '8', '6', '5', '7', '4', '3', '6'],
+        [
+            'SSH brute force', 'RDP brute force', 'VPN lockouts', 'Repeated auth failures', 'Password spray', 'Stale creds',
+            'Trojan detected', 'Cryptominer', 'Rootkit signature', 'Adware',
+            'Port scan blocked', 'Known bad IP', 'Geo-blocked range',
+            'Brute force', 'Follow-on malware',
+            'Auth failures', 'Egress blocked',
+            'Malware', 'C2 callback blocked',
+            'Auth failures', 'Malware', 'C2 callback blocked',
+        ],
     ],
 };
 

@@ -14,6 +14,7 @@ else
 fi
 
 export APP_DIRECTORY_NAME=$(basename "$PWD")
+export SPLUNK_APP_DIRECTORY_NAME="${APP_DIRECTORY_NAME//-/_}"
 export VIRTUAL_ENV="true"
 
 
@@ -21,8 +22,8 @@ echo "Activating virtual environment..."
 source ./.venv/bin/activate
 
 
-SOURCE_DIR="$GIT_HOME/$APP_DIRECTORY_NAME/stage/${APP_DIRECTORY_NAME//-/_}"
-TARGET_DIR="$SPLUNK_HOME/etc/apps/${APP_DIRECTORY_NAME//-/_}"
+SOURCE_DIR="$GIT_HOME/$APP_DIRECTORY_NAME/stage/$SPLUNK_APP_DIRECTORY_NAME"
+TARGET_DIR="$SPLUNK_HOME/etc/apps/$SPLUNK_APP_DIRECTORY_NAME"
 
 echo "========================================"
 echo "Building Splunk App: $APP_DIRECTORY_NAME"

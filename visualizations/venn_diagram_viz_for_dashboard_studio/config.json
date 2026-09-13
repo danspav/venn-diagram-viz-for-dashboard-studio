@@ -2,9 +2,9 @@
   "showTitleAndDescription": true,
   "includeInToolbar": true,
   "includeInVizSwitcher": true,
-  "showDrilldown": false,
-  "canSetTokens": [],
-  "hasEventHandlers": false,
+  "showDrilldown": true,
+  "canSetTokens": ["dynamic", "static"],
+  "hasEventHandlers": true,
   "config": {
     "name": "Venn Diagram Viz For Dashboard Studio",
     "description": "A custom visualization for Splunk Dashboard Studio",
@@ -18,7 +18,86 @@
       "initialWidth": 400,
       "initialHeight": 300
     },
-    "optionsSchema": {},
-    "editorConfig": []
+    "optionsSchema": {
+      "legendPosition": {
+        "type": "string",
+        "default": "bottom"
+      },
+      "backgroundColor": {
+        "type": "string",
+        "default": "#0d1117"
+      },
+      "labelSize": {
+        "type": "string",
+        "default": "small"
+      },
+      "fillCircles": {
+        "type": "boolean",
+        "default": false
+      },
+      "animateItems": {
+        "type": "boolean",
+        "default": false
+      }
+    },
+    "editorConfig": [
+      {
+        "label": "Layout",
+        "layout": [
+          [
+            {
+              "label": "Legend position",
+              "editor": "editor.select",
+              "option": "legendPosition",
+              "editorProps": {
+                "values": [
+                  { "label": "Top", "value": "top" },
+                  { "label": "Bottom", "value": "bottom" },
+                  { "label": "Left", "value": "left" },
+                  { "label": "Right", "value": "right" },
+                  { "label": "None", "value": "none" }
+                ]
+              }
+            }
+          ]
+        ]
+      },
+      {
+        "label": "Appearance",
+        "layout": [
+          [
+            {
+              "label": "Background color",
+              "editor": "editor.color",
+              "option": "backgroundColor"
+            },
+            {
+              "label": "Label size",
+              "editor": "editor.select",
+              "option": "labelSize",
+              "editorProps": {
+                "values": [
+                  { "label": "Small", "value": "small" },
+                  { "label": "Medium", "value": "medium" },
+                  { "label": "Large", "value": "large" }
+                ]
+              }
+            }
+          ],
+          [
+            {
+              "label": "Fill",
+              "editor": "editor.checkbox",
+              "option": "fillCircles"
+            },
+            {
+              "label": "Animate items",
+              "editor": "editor.checkbox",
+              "option": "animateItems"
+            }
+          ]
+        ]
+      }
+    ]
   }
 }

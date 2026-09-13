@@ -71,20 +71,25 @@
    variables anyway, so these are set here rather than relying on Splunk's
    light/dark tokens). */
 .venn-viz {
-    --venn-bg: #0d1117;
     --venn-panel: #121820;
     --venn-line: #263140;
     --venn-text: #d5dde5;
     --venn-muted: #7c8a99;
     padding: 0;
-    background: var(--venn-bg);
     color: var(--venn-text);
     font-family: var(--sans, -apple-system, 'Segoe UI', sans-serif);
+    /* Column layout so an optional bottom warning banner (too many
+       categories found) takes its own natural height instead of being
+       squeezed under venn-wrap's own height:100% or clipped by
+       overflow:hidden. */
+    display: flex;
+    flex-direction: column;
 }
 
 .venn-wrap {
     width: 100%;
-    height: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -117,17 +122,72 @@
     position: relative;
 }
 
+/* Colors come from CSS custom properties set inline per-path in JS (see
+   renderVenn) rather than the fill/stroke properties themselves, so the
+   .venn-circle--active/--dimmed rules below can actually win — an inline
+   style always beats a stylesheet rule, custom properties don't have that
+   problem. Active/dimmed are plain classes (not :hover) because a legend
+   item — a separate DOM tree with no CSS relationship to the SVG — needs to
+   trigger the same effect as hovering the circle itself; see setActiveSet
+   in renderVenn. */
 .venn-chart-wrap .venn-circle path {
-    stroke-width: 1.5px;
-    fill-opacity: 0.06 !important;
-    stroke-opacity: 0.55;
+    fill: var(--circle-fill);
+    fill-opacity: var(--circle-fill-opacity, 0);
+    stroke: none;
+    cursor: pointer;
+    transition: fill-opacity 0.15s ease;
+}
+.venn-chart-wrap .venn-circle path.venn-circle--active {
+    fill: var(--circle-fill-dark);
+    fill-opacity: var(--circle-hover-fill-opacity, 0);
+}
+.venn-chart-wrap .venn-circle path.venn-circle--dimmed {
+    fill-opacity: var(--circle-dimmed-fill-opacity, 0);
 }
 
-.venn-chart-wrap .venn-circle text {
-    fill: var(--venn-muted);
+/* The actual boundary stroke lives here, not on the fill path above — see
+   the comment in renderVenn for why (fills would otherwise be able to
+   cover another circle's boundary where they overlap, worst in the dead
+   center where all 3 discs stack). Decorative only: pointer-events:none so
+   hover/click still land on the fill path beneath, everywhere including
+   exactly on the stroke line itself. */
+.venn-chart-wrap .circle-outline {
+    fill: none;
+    stroke: var(--circle-stroke);
+    stroke-width: 1.5px;
+    stroke-opacity: 0.55;
+    pointer-events: none;
+    transition: stroke-width 0.15s ease, stroke-opacity 0.15s ease;
+}
+.venn-chart-wrap .circle-outline.venn-circle--active {
+    stroke-width: 2.4px;
+    /* Boost opacity too, not just width — width alone on a thin, already
+       faint 1.5px line wasn't a strong enough cue on its own. */
+    stroke-opacity: 0.75;
+}
+/* Only applied when Fill is off (see setActiveSet) — with Fill off the
+   outline is the only visible trace of a circle, so this is what "focus on
+   the active circle" has to act on instead of dimming a fill. History:
+   0.55->0.22 (active left at 0.55) turned out untested and was never
+   actually judged; 0.9/0.12 was too strong once deployed; 0.75/0.18 was
+   judged still too dim on the non-hovered circles. Keeping active at 0.75
+   and raising dimmed to 0.32 — a ~2.3x contrast, closer to "still clearly
+   there" per Daniel's request. */
+.venn-chart-wrap .circle-outline.venn-circle--dimmed {
+    stroke-opacity: 0.32;
+}
+
+/* Sits outside its circle (see circle-label-layer in renderVenn), colored
+   to match that circle so the association is still obvious at a glance
+   now that the label is no longer physically inside the shape it names.
+   font-size is set inline per-render (Label Size option) rather than here —
+   truncation measures text length, which depends on the size actually in
+   effect, so it has to be set before that measurement runs. */
+.venn-chart-wrap .circle-label {
     font-family: inherit;
-    font-size: 12px;
     font-weight: 500;
+    dominant-baseline: middle;
+    pointer-events: none;
 }
 
 .host-dot {
@@ -138,6 +198,39 @@
 .host-dot:hover {
     stroke: var(--venn-text);
     stroke-width: 1.5px;
+}
+
+/* Idle "Animate items" pulse — gated on prefers-reduced-motion here too,
+   as a CSS-level backstop to the JS check that decides whether to apply
+   this class at all. Per-dot animation-delay (set inline in JS) staggers
+   the cycle so 100+ dots don't pulse in unison. */
+@media (prefers-reduced-motion: no-preference) {
+    .host-dot--pulse {
+        transform-box: fill-box;
+        transform-origin: center;
+        animation: venn-dot-pulse 2.6s ease-in-out infinite;
+    }
+}
+
+@keyframes venn-dot-pulse {
+    0%,
+    100% {
+        transform: scale(1);
+    }
+    50% {
+        /* Dots are tiny (2.2-5.5px radius) — an 8% scale change is
+           sub-pixel and effectively invisible at that size, so this needs
+           to be well past what would read as "subtle" on a larger shape. */
+        transform: scale(1.3);
+    }
+}
+
+/* While hovering a parent circle, dots outside it stop pulsing (JS toggles
+   this class based on set membership) — settle back to a neutral scale
+   rather than freezing mid-pulse via animation-play-state. */
+.host-dot--pulse.host-dot--pulse-paused {
+    animation: none;
+    transform: scale(1);
 }
 
 .venn-tooltip {
@@ -188,10 +281,32 @@
     gap: 7px;
     font-size: 12.5px;
     color: var(--venn-text);
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+}
+/* Click to toggle a category's circle on/off — stays in the legend (not
+   removed) so it's still clickable to bring the circle back. */
+.venn-legend-item--disabled {
+    opacity: 0.4;
+}
+.venn-legend-item--disabled .venn-legend-swatch {
+    filter: grayscale(1);
 }
 .venn-legend-swatch {
     width: 10px;
     height: 10px;
     border-radius: 2px;
     flex: 0 0 auto;
+}
+
+/* Shown when the data has more than 3 categories — buildRenderModel already
+   rendered using just the first 3, this just says so. Amber rather than
+   the plain muted text color used for empty-state messages, so it actually
+   reads as a heads-up rather than blending in as routine copy. */
+.venn-warning {
+    flex: 0 0 auto;
+    padding: 6px 16px;
+    font-size: 11.5px;
+    color: #d9a441;
+    text-align: center;
 }
