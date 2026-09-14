@@ -132,26 +132,46 @@ that aren't literally raw SPL columns:
 
 - **A dot** (an item) — `name` (the item id), `value` (its summed value),
   `row.tooltip.value` (its combined tooltip text), `row.color.value` (its
-  blended hex color), and `row.<field>.value` for **every column your
-  search actually supplied**, under that column's own name — e.g.
-  `row.host.value`, `row.count.value`, whatever you called your columns
-  above. If your search happens to name a column literally `tooltip` (or
-  `color`), the combined/blended value here wins over that raw column's
-  value under the same key. If an item spans multiple rows,
-  `row.<field>.value` reflects the last row that had a non-blank value for
-  that field (a row that left a column blank doesn't erase an earlier row's
-  value for it).
-- **A parent circle** (a whole category) — `name` (the category name) and
-  `row.color.value` only; a category doesn't have one row's value/tooltip
-  to offer.
-- **A legend item** — same as a parent circle: `name` and
-  `row.color.value`. Clicking a legend item still also toggles that
+  blended hex color), `row.categoryList.value` (see below), and
+  `row.<field>.value` for **every column your search actually supplied**,
+  under that column's own name — e.g. `row.host.value`, `row.count.value`,
+  whatever you called your columns above. If your search happens to name a
+  column literally `tooltip` (or `color`), the combined/blended value here
+  wins over that raw column's value under the same key. If an item spans
+  multiple rows, `row.<field>.value` reflects the last row that had a
+  non-blank value for that field (a row that left a column blank doesn't
+  erase an earlier row's value for it).
+- **A parent circle** (a whole category) — `name` (the category name),
+  `row.color.value`, and `row.categoryList.value` (see below).
+- **A legend item** — same as a parent circle: `name`, `row.color.value`,
+  `row.categoryList.value`. Clicking a legend item still also toggles that
   category on/off as before — both happen on the same click.
 - **A region's count** (only in "Show counts" mode, see below) — `name`
   (the category name(s) that region belongs to, e.g. `Category A +
   Category B`), `value` (the item count shown), `row.totalValue.value`
-  (the sum of those items' own values), and `row.color.value` (the
-  region's blended color).
+  (the sum of those items' own values), `row.color.value` (the region's
+  blended color), and `row.categoryList.value`.
+
+### `row.categoryList.value` — for use with SPL's `IN()`
+
+Every category-related click (a dot, a parent circle, a legend item, or a
+region's count) also sets `row.categoryList.value`: the involved
+category name(s), double-quoted and comma-separated — e.g. `"Restarts"`
+for a single category, or `"Restarts", "Server Errors"` for a dot/region
+spanning both. Bind a token to it and drop that token straight into an
+`IN()` clause:
+
+```spl
+| where category IN($clicked_categories$)
+```
+
+This is deliberately a UNION list, not a filter for "only the exact
+overlap." Clicking the A∩B overlap region gives you `"A", "B"` — which,
+used in `IN()`, matches every event tagged EITHER category, i.e. all of
+A-only + B-only + A∩B together. That's normally the more useful query
+("show me everything related to this pair of signals"); the region itself
+already shows you the exact-overlap count/total if that's what you
+actually wanted to report on.
 
 ## "Show counts instead of dots" option
 

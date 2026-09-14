@@ -318,6 +318,33 @@ function regionKeyOf(memberships) {
     return memberships.slice().sort().join(',');
 }
 
+// Picks readable legend text against the diagram's own configured
+// background COLOR OPTION — not Splunk's dashboard light/dark theme, which
+// this used to key off unconditionally. Those are independent settings: a
+// user can pick a light background color on a dashboard set to dark theme
+// (or the reverse), and text chosen for the theme rather than the actual
+// background can end up illegible — e.g. white legend text (the dark-theme
+// default) on a background color the user set to white. Falls back to the
+// theme-based default when the background is mostly transparent or
+// unparseable, since in that case Splunk's own theme IS what's actually
+// showing through behind the legend, same as before this fix. Reuses d3's
+// own color parser (already a dependency, used by blend()) rather than
+// hand-rolling hex/rgb/rgba parsing.
+function pickLegendTextColor(backgroundColor, theme) {
+    const themeDefault = theme === 'light' ? LEGEND_TEXT_COLOR.light : LEGEND_TEXT_COLOR.dark;
+    if (!backgroundColor || String(backgroundColor).trim().toLowerCase() === 'transparent') {
+        return themeDefault;
+    }
+    const parsed = d3.color(backgroundColor);
+    if (!parsed || parsed.opacity < 0.5) return themeDefault;
+    const rgb = parsed.rgb();
+    // Standard perceived-brightness heuristic (YIQ), not full WCAG contrast
+    // math — good enough to pick readable text against an arbitrary
+    // user-chosen background without over-engineering it.
+    const brightness = (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000;
+    return brightness > 128 ? LEGEND_TEXT_COLOR.light : LEGEND_TEXT_COLOR.dark;
+}
+
 function blend(keys, categoryColors) {
     const rgbs = keys.map((k) => d3.rgb(categoryColors[k]));
     const r = d3.mean(rgbs, (c) => c.r);
@@ -1632,7 +1659,7 @@ function VennVisualization() {
     const animateItems = options?.animateItems === true;
     const showCounts = options?.showCounts === true;
     const labelSize = LABEL_FONT_SIZES[options?.labelSize] ? options.labelSize : DEFAULT_LABEL_SIZE;
-    const legendTextColor = theme === 'light' ? LEGEND_TEXT_COLOR.light : LEGEND_TEXT_COLOR.dark;
+    const legendTextColor = pickLegendTextColor(backgroundColor, theme);
     // Positional, not name-based — "category color 1" always means
     // whichever category is alphabetically first this render (region key
     // A), same as the pre-existing region-key assignment already works.
