@@ -21,11 +21,16 @@ const PAIR_COMBOS = [
 ];
 const TRIPLE_COMBO = ['A', 'B', 'C'];
 
-// Category names/colors: the category NAMES are discovered from the data
-// itself now (see discoverCategoryNames) rather than configured — A/B/C are
-// purely internal bookkeeping slots colors and layout hang off of. Explicit
-// naming/color overrides will move into the options panel later.
-const CATEGORY_COLORS = { A: '#5fb3d9', B: '#d9a441', C: '#d9564f' };
+// Category NAMES are discovered from the data itself (see
+// discoverCategoryNames) rather than configured — A/B/C are purely internal
+// bookkeeping slots that layout hangs off of, reassigned alphabetically
+// each render. Colors ARE user-configurable (categoryColorA/B/C options,
+// see VennVisualization) — these are just the defaults, used whenever an
+// option is unset. Since the slot assignment is positional (alphabetical),
+// not tied to a specific category name, "category color 1" always means
+// "whichever category is alphabetically first this render," same as the
+// existing region-key assignment already behaves.
+const DEFAULT_CATEGORY_COLORS = { A: '#5fb3d9', B: '#d9a441', C: '#d9564f' };
 
 // Row shapes are positional EXCEPT for `value`/`tooltip`: if a field is
 // literally named one of those (case-insensitive), that column is used
@@ -62,6 +67,15 @@ const ENTRANCE_DURATION_MS = 380;
 const ENTRANCE_STAGGER_MAX_MS = 120;
 const PULSE_DURATION_S = 2.6; // keep in sync with venn-dot-pulse's duration in visualization.css
 
+// "Show counts" mode (renderVenn): a region's hit-area/text is sized off
+// its own Monte Carlo-estimated area (sqrt(area/pi) — the radius of a
+// circle with that same area), clamped so a thin sliver still gets a
+// comfortably hoverable target and a huge region's number doesn't grow
+// unboundedly.
+const COUNT_HIT_RADIUS_MIN = 14;
+const COUNT_FONT_MIN = 10;
+const COUNT_FONT_MAX = 24;
+
 const LABEL_OFFSET = 14; // px beyond each circle's own radius
 // Truncation width scales with the chart's own size (see renderVenn)
 // instead of one fixed number, so a bigger panel allows longer labels.
@@ -84,17 +98,27 @@ const LABEL_LINE_HEIGHT_MULTIPLIER = 1.15;
 // Space reserved around the chart so labels (which sit OUTSIDE their own
 // circle, per LABEL_OFFSET) can't clip the container's true edges —
 // PANEL_PADDING alone is a small general gutter, not sized for label text.
-// Vertical is the worst case (2 lines at the largest font size) since
-// almost every label ends up top/bottom-anchored with the placement rules
-// in renderVenn; horizontal covers the rarer side-anchored case (only when
-// a circle's direction from center is closer to horizontal than the
-// "points down" threshold allows), and a side-anchored label's own max
-// width is capped to LABEL_SIDE_MAX_WIDTH to match exactly what's reserved
-// for it — it can never grow wider than the room actually set aside.
+// Vertical margin is computed in renderVenn from the ACTUAL labelSize in
+// effect (not a fixed worst-case) since it directly eats into chart height,
+// almost always the binding dimension for a landscape panel — reserving
+// room as if every label were "Large" regardless of the real setting was
+// the main reason the diagram rendered much smaller than the panel actually
+// allowed. LABEL_HORIZONTAL_MARGIN covers the rarer side-anchored case
+// (only when a circle's direction from center is closer to horizontal than
+// the "points down" threshold allows) — also decided dynamically in
+// renderVenn (see measureDiagramLayout) rather than reserved unconditionally
+// on every render, since most layouts never end up with a single
+// side-anchored label at all. A side-anchored label's own max width is
+// capped to LABEL_SIDE_MAX_WIDTH to match exactly what's reserved for it —
+// it can never grow wider than the room actually set aside.
 const LABEL_SIDE_MAX_WIDTH = 90;
-const LABEL_VERTICAL_MARGIN =
-    LABEL_OFFSET + LABEL_MAX_LINES * LABEL_FONT_SIZES.large * LABEL_LINE_HEIGHT_MULTIPLIER;
 const LABEL_HORIZONTAL_MARGIN = LABEL_OFFSET + LABEL_SIDE_MAX_WIDTH;
+// Used instead of LABEL_HORIZONTAL_MARGIN when NO label ends up
+// side-anchored — still needs to be non-zero, since a middle-anchored
+// (top/bottom) label's wrapped width can extend past its own circle's edge
+// by up to half of centerMaxLabelWidth, which could otherwise clip the
+// panel edge for a circle sitting near the outer edge of the layout.
+const LABEL_MIDDLE_HORIZONTAL_MARGIN = 40;
 
 // Positional for item/categories — a search author can name those columns
 // whatever they want (`| table host, category, description`). value and
@@ -294,8 +318,8 @@ function regionKeyOf(memberships) {
     return memberships.slice().sort().join(',');
 }
 
-function blend(keys) {
-    const rgbs = keys.map((k) => d3.rgb(CATEGORY_COLORS[k]));
+function blend(keys, categoryColors) {
+    const rgbs = keys.map((k) => d3.rgb(categoryColors[k]));
     const r = d3.mean(rgbs, (c) => c.r);
     const g = d3.mean(rgbs, (c) => c.g);
     const b = d3.mean(rgbs, (c) => c.b);
@@ -312,6 +336,22 @@ function buildDotTooltipText(d) {
     return lines.join('\n');
 }
 
+// Formats a set of category keys as a double-quoted, comma-separated list
+// ready to drop straight into SPL's IN() clause, e.g. `category
+// IN($token$)` — so clicking/hovering ANY category-related element gives a
+// token for "every event tagged with ANY of these categories" (IN() is a
+// union over its listed values). For a single circle/legend/dot this is
+// just one quoted name; for a multi-category region (e.g. the A∩B overlap)
+// it's genuinely useful — the region itself represents just the exact
+// overlap, but the IN() list built from its categories pulls the broader
+// union (A-only + B-only + A∩B together), which is what "find everything
+// related to this pair of signals" usually actually means. Quotes inside a
+// category name are escaped so an unusual name can't break the SPL syntax
+// a dashboard author pastes this into.
+function buildCategoryListToken(keys, names) {
+    return keys.map((k) => `"${String(names[k]).replace(/"/g, '\\"')}"`).join(', ');
+}
+
 // A click drilldown payload is one flat object of token values. Dashboard
 // Studio's own "Set Tokens" click interaction editor only ever reads THREE
 // shapes of key out of this object — `name`, `value`, and `row.<fieldname>.
@@ -325,13 +365,14 @@ function buildDotTooltipText(d) {
 // AFTER the raw fields below are spread in, so they win over a same-named
 // real SPL column (our combined multi-row tooltip is strictly more complete
 // than any single row's raw value for it).
-function buildDotDrilldownPayload(d) {
+function buildDotDrilldownPayload(d, names) {
     const payload = { name: d.id, value: d.value };
     Object.entries(d.rawFields || {}).forEach(([field, value]) => {
         payload[`row.${field}.value`] = value ?? '';
     });
     payload['row.tooltip.value'] = buildDotTooltipText(d);
     payload['row.color.value'] = d.color;
+    payload['row.categoryList.value'] = buildCategoryListToken(d.memberships, names);
     return payload;
 }
 
@@ -429,6 +470,96 @@ function classify(circles, activeKeys, x, y) {
     return included.sort().join(',');
 }
 
+// Pure geometry pipeline (no DOM) — venn.js's own VennDiagram() chart never
+// exposes final scaled circle geometry on the datum, so this has to be
+// recomputed manually with the exact same width/height/padding used for the
+// real chart() render (see renderVenn). Also run BEFORE that render, with a
+// provisional width, purely to measure a solution's natural footprint —
+// cheap pure math, so doing it twice per render is fine.
+function computeVennGeometry(vennSets, names, w, h) {
+    let solution = venn.venn(vennSets);
+    solution = venn.normalizeSolution(solution, Math.PI / 2, null);
+    const scaled = venn.scaleSolution(solution, w, h, 15);
+    const circles = {};
+    REGION_KEYS.forEach((k) => {
+        if (scaled[names[k]]) circles[k] = scaled[names[k]];
+    });
+    const activeKeys = REGION_KEYS.filter((k) => circles[k]);
+    return { circles, activeKeys };
+}
+
+// Each label sits just outside its own circle, along the direction from the
+// diagram's overall center out through that circle's own center — this is
+// data-driven rather than hardcoded per letter, so whichever circle ends up
+// top/bottom/side for a given dataset (venn.js's layout solver decides
+// that, not us) gets a label placed sensibly outside it. Extracted as a
+// standalone function (rather than inlined in the label-rendering loop) so
+// the chart-sizing pre-check in renderVenn (measureDiagramLayout, below)
+// and the real label placement use IDENTICAL direction logic — duplicating
+// it would risk the two silently drifting apart.
+function computeLabelDirections(circles, activeKeys) {
+    const centroid = {
+        x: d3.mean(activeKeys, (k) => circles[k].x),
+        y: d3.mean(activeKeys, (k) => circles[k].y),
+    };
+    // With exactly 2 circles, they sit side by side at roughly the same
+    // height — the general "radially away from center" rule would put both
+    // labels off to the side, each cramped toward whichever edge is nearer.
+    // Top/bottom instead gives each one the full, symmetric width to wrap
+    // into: left circle's label on top, right circle's on the bottom.
+    const isTwoCircleLayout = activeKeys.length === 2;
+    const leftKey = isTwoCircleLayout
+        ? activeKeys.reduce((a, b) => (circles[a].x <= circles[b].x ? a : b))
+        : null;
+    const directions = {};
+    activeKeys.forEach((key) => {
+        const c = circles[key];
+        let ux;
+        let effectiveUy;
+        if (isTwoCircleLayout) {
+            ux = 0;
+            effectiveUy = key === leftKey ? -1 : 1;
+        } else {
+            const dx = c.x - centroid.x;
+            const dy = c.y - centroid.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            // A single circle has nowhere to point "away from center" (it
+            // IS the center) — default to straight up in that degenerate
+            // case.
+            const rawUx = dist > 0.01 ? dx / dist : 0;
+            const uy = dist > 0.01 ? dy / dist : -1;
+            // A downward-pointing label sits straight beneath its own
+            // circle instead of diagonally out to the side — diagonal
+            // placement crowds toward whichever side edge is nearer, while
+            // straight-down keeps it centered under the circle with
+            // symmetric room either way for wrapping.
+            const pointsDown = uy > 0.15;
+            ux = pointsDown ? 0 : rawUx;
+            effectiveUy = pointsDown ? 1 : uy;
+        }
+        const anchor = ux < -0.15 ? 'end' : ux > 0.15 ? 'start' : 'middle';
+        directions[key] = { ux, effectiveUy, anchor };
+    });
+    return directions;
+}
+
+// Used by renderVenn's chart-sizing pre-check: does this layout need full
+// side-label room on both edges, or will every label end up top/bottom
+// (middle-anchored)? Also measures the solution's actual bounding width, so
+// the final chartWidth can be sized to what the diagram really needs
+// instead of the full leftover panel width — venn.js centers its solution
+// within whatever box it's given, so a needlessly wide box just shows up as
+// empty gutters on both sides once the (usually height-bound) diagram is
+// centered inside it.
+function measureDiagramLayout(circles, activeKeys) {
+    const directions = computeLabelDirections(circles, activeKeys);
+    const anySideAnchored = activeKeys.some((k) => directions[k].anchor !== 'middle');
+    const naturalWidth =
+        d3.max(activeKeys, (k) => circles[k].x + circles[k].radius) -
+        d3.min(activeKeys, (k) => circles[k].x - circles[k].radius);
+    return { anySideAnchored, naturalWidth };
+}
+
 // Sets textEl's content to `text`, shortening it with a trailing "…" if it
 // doesn't fit within maxWidth. Mutates and returns the final string shown.
 function truncateLabel(textEl, text, maxWidth) {
@@ -501,7 +632,9 @@ function renderVenn(
     animateItems,
     backgroundColor,
     labelSize,
-    hoverTargetRef
+    hoverTargetRef,
+    categoryColors,
+    showCounts
 ) {
     container.innerHTML = '';
 
@@ -512,19 +645,61 @@ function renderVenn(
 
     const isSideLegend = legendPos === 'left' || legendPos === 'right';
     const reserve = LEGEND_RESERVE[legendPos] ?? 0;
-    const chartWidth = Math.max(
-        80,
-        width - PANEL_PADDING * 2 - LABEL_HORIZONTAL_MARGIN * 2 - (isSideLegend ? reserve : 0)
-    );
-    const chartHeight = Math.max(
-        80,
-        height - PANEL_PADDING * 2 - LABEL_VERTICAL_MARGIN * 2 - (isSideLegend ? 0 : reserve)
-    );
 
     const noop = { stop: () => {}, setActiveSet: () => {}, animateOutCategory: (_name, onComplete) => onComplete() };
 
     const vennSets = buildVennSets(hosts, names);
     if (vennSets.length === 0) return noop;
+
+    // Vertical margin matches the label size actually in effect, not a
+    // fixed worst-case — see the comment above LABEL_HORIZONTAL_MARGIN.
+    const labelFontSize = LABEL_FONT_SIZES[labelSize] || LABEL_FONT_SIZES[DEFAULT_LABEL_SIZE];
+    const verticalMargin = LABEL_OFFSET + LABEL_MAX_LINES * labelFontSize * LABEL_LINE_HEIGHT_MULTIPLIER;
+    // chartHeight doesn't depend on chartWidth, so it's final immediately.
+    // availableHeight (pre-margin) is kept around too — used later to
+    // compute exactly how much further the whole rendered diagram can be
+    // scaled up once its ACTUAL measured extent is known (see fillScale
+    // near the end of this function), since chartHeight itself already has
+    // the conservative worst-case margin baked in.
+    const availableHeight = Math.max(80, height - PANEL_PADDING * 2 - (isSideLegend ? 0 : reserve));
+    const chartHeight = Math.max(80, availableHeight - verticalMargin * 2);
+
+    // chartWidth is trickier: how much horizontal room to reserve depends
+    // on which direction labels end up pointing, which depends on the
+    // circles' layout, which depends on chartWidth itself. Resolved with a
+    // provisional (deliberately generous) geometry pass purely to measure
+    // the solution's natural footprint and label directions — pure math, no
+    // DOM touched, so running it twice per render (here and again once
+    // chartWidth is final) is cheap. This replaces always reserving full
+    // side-label room on both edges regardless of whether any label ends up
+    // side-anchored (most layouts never do — see computeLabelDirections),
+    // which on a wide landscape panel meant venn.js centered an
+    // already-height-bound diagram inside a needlessly wide box: exactly
+    // the "lot of white space around the diagram" Daniel reported.
+    const availableWidth = Math.max(80, width - PANEL_PADDING * 2 - (isSideLegend ? reserve : 0));
+    const provisional = computeVennGeometry(vennSets, names, availableWidth, chartHeight);
+    if (provisional.activeKeys.length === 0) return noop;
+    const { anySideAnchored, naturalWidth } = measureDiagramLayout(
+        provisional.circles,
+        provisional.activeKeys
+    );
+    const horizontalMargin = anySideAnchored ? LABEL_HORIZONTAL_MARGIN : LABEL_MIDDLE_HORIZONTAL_MARGIN;
+    // Two ceilings, take whichever is tighter:
+    //  - never below availableWidth minus the full margin — this is a hard
+    //    floor on how much room stays OUTSIDE the svg (same guarantee the
+    //    old fixed-subtraction formula always gave), so a narrow panel
+    //    can't eat into it the way `min(availableWidth, natural+margin)`
+    //    alone did: when natural+margin exceeded availableWidth, that
+    //    version picked availableWidth outright with ZERO margin left,
+    //    since venn.js then re-fits circles snugly to whatever width it's
+    //    given — exactly reproducing the label-clipping bug the "scale to
+    //    fit" work fixed previously. Verified via headless regression.
+    //  - never above what the diagram naturally needs (+ margin) — this is
+    //    the actual space-filling improvement: no point making the svg
+    //    wider than its own content, since venn.js would just center that
+    //    content inside the extra width, showing as dead space.
+    const maxChartWidth = Math.max(80, availableWidth - horizontalMargin * 2);
+    const chartWidth = Math.max(80, Math.min(maxChartWidth, naturalWidth + horizontalMargin * 2));
 
     const wrap = d3.select(container).append('div').attr('class', 'venn-chart-wrap');
     const chartDiv = wrap.append('div').attr('class', 'venn-chart');
@@ -550,7 +725,7 @@ function renderVenn(
     // referenced through var() don't have that problem.
     div.selectAll('.venn-circle path').each(function (d) {
         const key = REGION_KEYS.find((k) => names[k] === d.sets[0]);
-        const base = CATEGORY_COLORS[key];
+        const base = categoryColors[key];
         d3.select(this)
             .attr('data-set-key', key)
             .style('--circle-fill', base)
@@ -578,23 +753,18 @@ function renderVenn(
     div.selectAll('.venn-intersection path').each(function (d) {
         const keys = REGION_KEYS.filter((k) => d.sets.includes(names[k]));
         d3.select(this)
-            .style('fill', fillCircles ? blend(keys) : backgroundColor)
+            .style('fill', fillCircles ? blend(keys, categoryColors) : backgroundColor)
             .style('fill-opacity', fillCircles ? CIRCLE_FILL_OPACITY : 1)
             .style('pointer-events', 'none');
     });
 
     // venn.js's VennDiagram() never exposes final scaled circle geometry on
-    // the datum — it must be recomputed with the exact same pipeline
-    // (venn -> normalizeSolution -> scaleSolution) and matching
-    // width/height/padding, or containment math won't match what's drawn.
-    let rawSolution = venn.venn(vennSets);
-    rawSolution = venn.normalizeSolution(rawSolution, Math.PI / 2, null);
-    const scaled = venn.scaleSolution(rawSolution, chartWidth, chartHeight, 15);
-    const circles = {};
-    REGION_KEYS.forEach((k) => {
-        if (scaled[names[k]]) circles[k] = scaled[names[k]];
-    });
-    const activeKeys = REGION_KEYS.filter((k) => circles[k]);
+    // the datum — it must be recomputed with the exact same pipeline and
+    // matching width/height/padding, or containment math won't match what's
+    // drawn. chartWidth changed since the provisional pass above (it's now
+    // final), so circle positions shift — this is the FINAL geometry, used
+    // for containment, dot seeding, outlines, and label placement below.
+    const { circles, activeKeys } = computeVennGeometry(vennSets, names, chartWidth, chartHeight);
     if (activeKeys.length === 0) return noop;
 
     const valueExtent = d3.extent(hosts, (h) => h.value);
@@ -604,59 +774,97 @@ function renderVenn(
             : d3.scaleSqrt().domain(valueExtent).range([2.2, 5.5]);
     hosts.forEach((h) => {
         h.r = rScale(h.value);
-        h.color = blend(h.memberships);
+        h.color = blend(h.memberships, categoryColors);
     });
 
-    // Region density must be capped via Monte Carlo area estimation: thin
-    // crescent regions have real, limited area, so if requested dot area
-    // exceeds what a region can hold, dots shrink rather than spill outside.
+    // Region density (Monte Carlo area estimation) serves two different
+    // purposes depending on mode: in dot mode, capping how many dots a thin
+    // crescent region can actually hold without spilling outside it; in
+    // "show counts" mode, placing each region's number at a point
+    // genuinely inside that region (the average of the samples that landed
+    // in it) and sizing its text/hit-area off the region's real area. The
+    // samples' own average position is a much better label point than, say,
+    // the geometric centroid of the region's bounding circles, which for a
+    // crescent-shaped exclusive region can land outside the region itself.
     const areaCounts = {};
+    const regionSumX = {};
+    const regionSumY = {};
     for (let i = 0; i < DENSITY_SAMPLES; i++) {
         const x = Math.random() * chartWidth;
         const y = Math.random() * chartHeight;
         const key = classify(circles, activeKeys, x, y);
-        if (key) areaCounts[key] = (areaCounts[key] || 0) + 1;
+        if (key) {
+            areaCounts[key] = (areaCounts[key] || 0) + 1;
+            regionSumX[key] = (regionSumX[key] || 0) + x;
+            regionSumY[key] = (regionSumY[key] || 0) + y;
+        }
     }
     const boxArea = chartWidth * chartHeight;
-    const hostsByRegion = d3.group(hosts, (h) => regionKeyOf(h.memberships));
-    hostsByRegion.forEach((regionHosts, key) => {
-        const area = ((areaCounts[key] || 0) / DENSITY_SAMPLES) * boxArea;
-        const capacity = area * PACKING_EFFICIENCY;
-        const requestedArea = d3.sum(regionHosts, (h) => Math.PI * h.r * h.r);
-        if (requestedArea > capacity && requestedArea > 0) {
-            const scale = Math.sqrt(capacity / requestedArea);
-            regionHosts.forEach((h) => {
-                h.r = Math.max(1.3, h.r * scale);
-            });
-        }
+    const regionArea = {};
+    const regionCentroid = {};
+    Object.keys(areaCounts).forEach((key) => {
+        regionArea[key] = (areaCounts[key] / DENSITY_SAMPLES) * boxArea;
+        regionCentroid[key] = { x: regionSumX[key] / areaCounts[key], y: regionSumY[key] / areaCounts[key] };
     });
 
-    // Seed each host via rejection sampling inside the bounding box of its
-    // included circles, so the simulation only has to resolve collisions
-    // rather than migrate nodes across boundaries from a guessed start.
-    hosts.forEach((h) => {
-        const bb = bboxForIncluded(circles, h.memberships);
-        let found = false;
-        for (let attempt = 0; attempt < 400; attempt++) {
-            const x = bb.minX + Math.random() * (bb.maxX - bb.minX);
-            const y = bb.minY + Math.random() * (bb.maxY - bb.minY);
-            if (satisfiesRegion(circles, activeKeys, x, y, h.memberships, h.r)) {
-                h.x = x;
-                h.y = y;
-                found = true;
-                break;
+    const hostsByRegion = d3.group(hosts, (h) => regionKeyOf(h.memberships));
+
+    if (!showCounts) {
+        hostsByRegion.forEach((regionHosts, key) => {
+            const area = regionArea[key] || 0;
+            const capacity = area * PACKING_EFFICIENCY;
+            const requestedArea = d3.sum(regionHosts, (h) => Math.PI * h.r * h.r);
+            if (requestedArea > capacity && requestedArea > 0) {
+                const scale = Math.sqrt(capacity / requestedArea);
+                regionHosts.forEach((h) => {
+                    h.r = Math.max(1.3, h.r * scale);
+                });
             }
-        }
-        if (!found) {
-            let p = { x: (bb.minX + bb.maxX) / 2, y: (bb.minY + bb.maxY) / 2 };
-            for (let i = 0; i < 40; i++) p = clampOnce(circles, activeKeys, p, h);
-            h.x = p.x;
-            h.y = p.y;
-        }
-    });
+        });
+
+        // Seed each host via rejection sampling inside the bounding box of
+        // its included circles, so the simulation only has to resolve
+        // collisions rather than migrate nodes across boundaries from a
+        // guessed start. Skipped entirely in "show counts" mode — no dots
+        // get rendered there, so there's nothing to seed a position for.
+        hosts.forEach((h) => {
+            const bb = bboxForIncluded(circles, h.memberships);
+            let found = false;
+            for (let attempt = 0; attempt < 400; attempt++) {
+                const x = bb.minX + Math.random() * (bb.maxX - bb.minX);
+                const y = bb.minY + Math.random() * (bb.maxY - bb.minY);
+                if (satisfiesRegion(circles, activeKeys, x, y, h.memberships, h.r)) {
+                    h.x = x;
+                    h.y = y;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                let p = { x: (bb.minX + bb.maxX) / 2, y: (bb.minY + bb.maxY) / 2 };
+                for (let i = 0; i < 40; i++) p = clampOnce(circles, activeKeys, p, h);
+                h.x = p.x;
+                h.y = p.y;
+            }
+        });
+    }
 
     const svg = div.select('svg');
     svg.style('overflow', 'visible');
+
+    // Every rendered element (venn.js's own circle/intersection groups,
+    // already children of svg at this point, plus our outline/label/dot
+    // layers appended below) moves into this one wrapper group instead of
+    // sitting directly on svg — so the whole diagram can be scaled up as a
+    // single unit once its ACTUAL rendered extent is known (see fillScale
+    // near the end of this function). chartWidth/chartHeight above are
+    // deliberately sized against a conservative worst-case label-wrapping
+    // budget, not the real (usually shorter) text, so there's normally
+    // genuine leftover room — rather than guess a fixed percentage,
+    // fillScale measures it directly and uses exactly what's actually free.
+    const existingSvgChildren = Array.from(svg.node().childNodes);
+    const contentGroup = svg.append('g').attr('class', 'venn-scale-wrapper');
+    existingSvgChildren.forEach((node) => contentGroup.node().appendChild(node));
 
     // Stroke lives on its own always-on-top-of-fills overlay (plain
     // <circle> elements using the same final geometry) instead of on
@@ -669,7 +877,7 @@ function renderVenn(
     // happened to also carry that circle's stroke to the top, one at a
     // time). A dedicated overlay painted after every fill makes every
     // circle's outline always fully visible regardless of z-order.
-    const outlineLayer = svg.append('g').attr('class', 'circle-outline-layer');
+    const outlineLayer = contentGroup.append('g').attr('class', 'circle-outline-layer');
     activeKeys.forEach((key) => {
         const c = circles[key];
         outlineLayer
@@ -679,7 +887,7 @@ function renderVenn(
             .attr('cx', c.x)
             .attr('cy', c.y)
             .attr('r', c.radius)
-            .style('--circle-stroke', CATEGORY_COLORS[key]);
+            .style('--circle-stroke', categoryColors[key]);
     });
 
     // Each label sits just outside its own circle, along the direction from
@@ -689,9 +897,9 @@ function renderVenn(
     // dataset (venn.js's layout solver decides that, not us) gets a label
     // placed sensibly outside it rather than a label baked to a fixed
     // on-screen position that could end up wrong (or overlapping another
-    // circle) for a different size mix.
-    const labelLayer = svg.append('g').attr('class', 'circle-label-layer');
-    const labelFontSize = LABEL_FONT_SIZES[labelSize] || LABEL_FONT_SIZES[DEFAULT_LABEL_SIZE];
+    // circle) for a different size mix. (labelFontSize is computed earlier,
+    // alongside chartHeight's vertical-margin calculation — reused here.)
+    const labelLayer = contentGroup.append('g').attr('class', 'circle-label-layer');
     // Top/bottom (anchor 'middle') labels get the general, chartWidth-scaled
     // budget; side-anchored ones are capped to LABEL_SIDE_MAX_WIDTH instead,
     // matching exactly the horizontal margin actually reserved for them
@@ -700,21 +908,10 @@ function renderVenn(
         LABEL_MAX_WIDTH,
         Math.max(LABEL_MIN_WIDTH, chartWidth * LABEL_WIDTH_FRACTION)
     );
-    const centroid = {
-        x: d3.mean(activeKeys, (k) => circles[k].x),
-        y: d3.mean(activeKeys, (k) => circles[k].y),
-    };
-    // With exactly 2 circles, they sit side by side at roughly the same
-    // height — the general "radially away from center" rule would put both
-    // labels off to the side (left/right-anchored), each cramped toward
-    // whichever side edge is nearer. Top/bottom instead gives each one the
-    // full, symmetric width to wrap into. Left circle's label goes on top,
-    // right circle's goes on the bottom (rather than e.g. both on top) so
-    // they don't end up stacked in the same vertical space.
-    const isTwoCircleLayout = activeKeys.length === 2;
-    const leftKey = isTwoCircleLayout
-        ? activeKeys.reduce((a, b) => (circles[a].x <= circles[b].x ? a : b))
-        : null;
+    // Same direction logic used by the chart-sizing pre-check above
+    // (measureDiagramLayout), so the two can never disagree about which
+    // labels end up side-anchored.
+    const labelDirections = computeLabelDirections(circles, activeKeys);
     // Placement below happens in two passes: first compute each label's
     // independent radial position/wrapping (as before), then nudge any pair
     // whose measured bounding boxes still overlap apart from each other. A
@@ -726,32 +923,10 @@ function renderVenn(
     const labelEntries = [];
     activeKeys.forEach((key) => {
         const c = circles[key];
-        let ux;
-        let effectiveUy;
-        if (isTwoCircleLayout) {
-            ux = 0;
-            effectiveUy = key === leftKey ? -1 : 1;
-        } else {
-            const dx = c.x - centroid.x;
-            const dy = c.y - centroid.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            // A single circle has nowhere to point "away from center" (it
-            // IS the center) — default to straight up in that degenerate
-            // case.
-            const rawUx = dist > 0.01 ? dx / dist : 0;
-            const uy = dist > 0.01 ? dy / dist : -1;
-            // A downward-pointing label sits straight beneath its own
-            // circle instead of diagonally out to the side — diagonal
-            // placement crowds toward whichever side edge is nearer, while
-            // straight-down keeps it centered under the circle with
-            // symmetric room either way for wrapping.
-            const pointsDown = uy > 0.15;
-            ux = pointsDown ? 0 : rawUx;
-            effectiveUy = pointsDown ? 1 : uy;
-        }
+        const { ux, effectiveUy } = labelDirections[key];
         const labelX = c.x + ux * (c.radius + LABEL_OFFSET);
         const labelY = c.y + effectiveUy * (c.radius + LABEL_OFFSET);
-        const anchor = ux < -0.15 ? 'end' : ux > 0.15 ? 'start' : 'middle';
+        const { anchor } = labelDirections[key];
         const maxLabelWidth = anchor === 'middle' ? centerMaxLabelWidth : LABEL_SIDE_MAX_WIDTH;
 
         const label = labelLayer
@@ -759,7 +934,7 @@ function renderVenn(
             .attr('class', 'circle-label')
             .attr('data-set-key', key)
             .attr('text-anchor', anchor)
-            .style('fill', CATEGORY_COLORS[key])
+            .style('fill', categoryColors[key])
             // Set before measuring for wrapping below — text length
             // depends on font size, so this can't be applied afterward.
             .style('font-size', `${labelFontSize}px`);
@@ -916,8 +1091,20 @@ function renderVenn(
         }
     });
 
-    const dotLayer = svg.append('g').attr('class', 'dot-layer');
-    const dotSel = dotLayer
+    // Shared by both modes — the region-count tooltip (below) reuses this
+    // same node/pattern rather than a second implementation.
+    const tooltip = wrap.append('div').attr('class', 'venn-tooltip');
+    // Assigned inside whichever branch below actually runs; referenced
+    // later by setActiveSet/animateOutCategory/the returned handle, which
+    // need to work correctly regardless of which mode rendered.
+    let dotSel = null;
+    let sim = null;
+    let countGroupSel = null;
+    let countRegions = null;
+
+    if (!showCounts) {
+    const dotLayer = contentGroup.append('g').attr('class', 'dot-layer');
+    dotSel = dotLayer
         .selectAll('circle.host-dot')
         .data(hosts, (d) => d.id)
         .join('circle')
@@ -955,8 +1142,6 @@ function renderVenn(
             });
     }
 
-    const tooltip = wrap.append('div').attr('class', 'venn-tooltip');
-
     dotSel
         .on('mouseover', (_event, d) => {
             tooltip.selectAll('*').remove();
@@ -980,7 +1165,7 @@ function renderVenn(
             // working-drilldowns.jsx). That listener's payloadCallback reads
             // whatever's currently hovered at click time via this ref, so
             // hover (not click) is what needs to keep it up to date.
-            if (hoverTargetRef) hoverTargetRef.current = buildDotDrilldownPayload(d);
+            if (hoverTargetRef) hoverTargetRef.current = buildDotDrilldownPayload(d, names);
         })
         .on('mousemove', (event) => {
             const [x, y] = d3.pointer(event, wrap.node());
@@ -990,21 +1175,138 @@ function renderVenn(
             tooltip.classed('venn-tooltip--visible', false);
             if (hoverTargetRef) hoverTargetRef.current = null;
         });
+    } else {
+        // "Show counts" mode: one number per region (all 7 possible A/B/C
+        // combinations, whichever actually have items) instead of packed
+        // dots — for when there are too many items to read individually.
+        // Legibility of the tiniest region (almost always the 3-way
+        // center) comes from a hover tooltip with the exact figures,
+        // rather than literal on-hover magnification of part of the SVG —
+        // simpler to get right and consistent with how dots already work.
+        const countsLayer = contentGroup.append('g').attr('class', 'count-layer');
+        const regions = [...hostsByRegion.entries()]
+            .map(([key, regionHosts]) => {
+                const memberKeys = key.split(',').filter(Boolean);
+                const fallbackCenter = () => {
+                    const bb = bboxForIncluded(circles, memberKeys);
+                    return { x: (bb.minX + bb.maxX) / 2, y: (bb.minY + bb.maxY) / 2 };
+                };
+                return {
+                    key,
+                    memberKeys,
+                    count: regionHosts.length,
+                    totalValue: d3.sum(regionHosts, (h) => h.value),
+                    area: regionArea[key] || 0,
+                    // Falls back to the bounding-circles' center on the rare
+                    // chance a region is real (has items) but too thin for
+                    // any of the 40k density samples to have landed in it.
+                    centroid: regionCentroid[key] || fallbackCenter(),
+                };
+            })
+            // Render biggest-area first (painted on the bottom) and
+            // smallest last (on top) — their circular hit-areas are only
+            // an approximation of the true (often crescent-shaped) region,
+            // so they can overlap slightly; this ordering makes sure the
+            // most specific region always wins that overlap, which matters
+            // most for the tiny A∩B∩C center sitting inside 3 much larger
+            // regions' approximate hit-areas.
+            .sort((a, b) => b.area - a.area);
 
-    // Activating a set (by hovering its circle OR the matching legend item —
-    // setActiveSet is exposed on the returned handle for the latter, since a
-    // legend item lives in a separate React-rendered DOM tree with no CSS
-    // relationship to the SVG, so this can't be a plain :hover rule) darkens
-    // that circle's own fill/border, dims the OTHER circles' fill (only
-    // meaningful when fillCircles is on — otherwise every fill-opacity here
-    // is already 0), and pauses the idle pulse on every dot that ISN'T a
-    // member of that set.
-    function setActiveSet(key) {
+        const regionGroups = countsLayer
+            .selectAll('g.count-region')
+            .data(regions, (r) => r.key)
+            .join('g')
+            .attr('class', 'count-region')
+            .attr('data-member-keys', (r) => r.key);
+        countGroupSel = regionGroups;
+        countRegions = regions;
+
+        regionGroups.each(function (r) {
+            const g = d3.select(this);
+            const hitRadius = Math.max(COUNT_HIT_RADIUS_MIN, Math.sqrt(r.area / Math.PI));
+            const fontSize = Math.max(COUNT_FONT_MIN, Math.min(COUNT_FONT_MAX, hitRadius * 0.9));
+
+            g.append('circle')
+                .attr('class', 'region-hit-area')
+                .attr('cx', r.centroid.x)
+                .attr('cy', r.centroid.y)
+                .attr('r', hitRadius);
+
+            g.append('text')
+                .attr('class', 'region-count')
+                .attr('x', r.centroid.x)
+                .attr('y', r.centroid.y)
+                .style('font-size', `${fontSize}px`)
+                .text(r.count);
+        });
+
+        function regionDisplayName(r) {
+            return r.memberKeys.map((k) => names[k]).join(' + ');
+        }
+        function buildRegionDrilldownPayload(r) {
+            return {
+                name: regionDisplayName(r),
+                value: r.count,
+                'row.totalValue.value': r.totalValue,
+                'row.color.value': blend(r.memberKeys, categoryColors),
+                'row.categoryList.value': buildCategoryListToken(r.memberKeys, names),
+            };
+        }
+
+        regionGroups
+            .on('mouseenter', (_event, r) => {
+                // No visible fill on the hit-area circle itself (see the
+                // CSS comment on .region-hit-area) — hover feedback is just
+                // the parent circle(s) highlighting plus this tooltip.
+                setActiveSet(r.memberKeys);
+                tooltip.selectAll('*').remove();
+                tooltip.append('div').attr('class', 'venn-tooltip-id').text(regionDisplayName(r));
+                tooltip.append('div').text(`${r.count} item${r.count === 1 ? '' : 's'}`);
+                tooltip.append('div').text(`Total value: ${r.totalValue}`);
+                tooltip.classed('venn-tooltip--visible', true);
+                if (hoverTargetRef) hoverTargetRef.current = buildRegionDrilldownPayload(r);
+            })
+            .on('mousemove', (event) => {
+                const [x, y] = d3.pointer(event, wrap.node());
+                tooltip.style('left', `${x + 12}px`).style('top', `${y - 24}px`);
+            })
+            .on('mouseleave', () => {
+                setActiveSet(null);
+                tooltip.classed('venn-tooltip--visible', false);
+                if (hoverTargetRef) hoverTargetRef.current = null;
+            });
+
+        if (!prefersReducedMotion) {
+            regionGroups
+                .style('opacity', 0)
+                .transition()
+                .duration(ENTRANCE_DURATION_MS)
+                .delay(() => Math.random() * ENTRANCE_STAGGER_MAX_MS)
+                .style('opacity', 1);
+        }
+    }
+
+    // Activating a set (by hovering its circle, an intersection region's
+    // count in "show counts" mode, OR the matching legend item —
+    // setActiveSet is exposed on the returned handle for the legend case,
+    // since a legend item lives in a separate React-rendered DOM tree with
+    // no CSS relationship to the SVG, so this can't be a plain :hover rule)
+    // darkens the active circle(s)' own fill/border, dims every OTHER
+    // circle's fill (only meaningful when fillCircles is on — otherwise
+    // every fill-opacity here is already 0), and pauses the idle pulse on
+    // every dot that ISN'T a member of the active set(s). Accepts either a
+    // single key (the existing single-circle-hover callers) or an array of
+    // keys (an intersection region belongs to more than one circle at
+    // once, e.g. hovering the A∩B count should highlight BOTH A and B,
+    // neither one dimmed relative to the other).
+    function setActiveSet(keyOrKeys) {
+        const activeList = keyOrKeys == null ? [] : Array.isArray(keyOrKeys) ? keyOrKeys : [keyOrKeys];
+        const hasActive = activeList.length > 0;
         div.selectAll('.venn-circle path').each(function (d) {
             const k = REGION_KEYS.find((rk) => names[rk] === d.sets[0]);
             d3.select(this)
-                .classed('venn-circle--active', k === key)
-                .classed('venn-circle--dimmed', fillCircles && key != null && k !== key);
+                .classed('venn-circle--active', activeList.includes(k))
+                .classed('venn-circle--dimmed', fillCircles && hasActive && !activeList.includes(k));
         });
         outlineLayer.selectAll('.circle-outline').each(function () {
             const k = this.getAttribute('data-set-key');
@@ -1013,11 +1315,14 @@ function renderVenn(
             // outline too would be redundant. With Fill off, the outline
             // (plus the label) is the only thing there is to dim.
             d3.select(this)
-                .classed('venn-circle--active', k === key)
-                .classed('venn-circle--dimmed', !fillCircles && key != null && k !== key);
+                .classed('venn-circle--active', activeList.includes(k))
+                .classed('venn-circle--dimmed', !fillCircles && hasActive && !activeList.includes(k));
         });
-        if (animateItems && !prefersReducedMotion) {
-            dotSel.classed('host-dot--pulse-paused', (h) => key != null && !h.memberships.includes(key));
+        if (dotSel && animateItems && !prefersReducedMotion) {
+            dotSel.classed(
+                'host-dot--pulse-paused',
+                (h) => hasActive && !h.memberships.some((m) => activeList.includes(m))
+            );
         }
     }
 
@@ -1039,7 +1344,11 @@ function renderVenn(
             const key = REGION_KEYS.find((k) => names[k] === d.sets[0]);
             setActiveSet(key);
             if (hoverTargetRef && key) {
-                hoverTargetRef.current = { name: names[key], 'row.color.value': CATEGORY_COLORS[key] };
+                hoverTargetRef.current = {
+                    name: names[key],
+                    'row.color.value': categoryColors[key],
+                    'row.categoryList.value': buildCategoryListToken([key], names),
+                };
             }
         })
         .on('mouseleave', () => {
@@ -1047,7 +1356,11 @@ function renderVenn(
             if (hoverTargetRef) hoverTargetRef.current = null;
         })
         .on('click', function () {
-            svg.node().insertBefore(this.parentNode, outlineLayer.node());
+            // Both this circle's own group and outlineLayer are children of
+            // contentGroup now (see the scale-wrapper re-parenting above),
+            // not of svg directly — insertBefore's reference node must
+            // share the same parent it's called on.
+            contentGroup.node().insertBefore(this.parentNode, outlineLayer.node());
         });
 
     // Fades out one category's circle (fill/outline/label) and any dots
@@ -1083,11 +1396,25 @@ function renderVenn(
         if (!label.empty()) {
             transitions.push(label.transition().duration(duration).style('opacity', 0).end());
         }
-        const exclusiveDots = dotSel.filter((h) => h.memberships.length === 1 && h.memberships[0] === key);
-        if (!exclusiveDots.empty()) {
-            transitions.push(
-                exclusiveDots.transition().duration(duration).attr('r', 0).style('opacity', 0).end()
-            );
+        if (dotSel) {
+            const exclusiveDots = dotSel.filter((h) => h.memberships.length === 1 && h.memberships[0] === key);
+            if (!exclusiveDots.empty()) {
+                transitions.push(
+                    exclusiveDots.transition().duration(duration).attr('r', 0).style('opacity', 0).end()
+                );
+            }
+        }
+        if (countGroupSel) {
+            // Only the region EXCLUSIVE to this category (data-member-keys
+            // is exactly this one key, e.g. "A" not "A,B") — a region that
+            // also belongs to another still-visible category isn't
+            // disappearing, same rule exclusiveDots above follows for dots.
+            const exclusiveRegions = countGroupSel.filter(function () {
+                return this.getAttribute('data-member-keys') === key;
+            });
+            if (!exclusiveRegions.empty()) {
+                transitions.push(exclusiveRegions.transition().duration(duration).style('opacity', 0).end());
+            }
         }
 
         // .end() rejects if a transition gets interrupted (e.g. the
@@ -1096,31 +1423,105 @@ function renderVenn(
         Promise.all(transitions).then(onComplete, onComplete);
     }
 
-    // Checking A, then B, then C once each per tick lets fixing one boundary
-    // re-break another (Gauss-Seidel problem) — run the clamp to convergence
-    // (~6 passes) per node per tick instead.
-    function clampToRegion(node) {
-        let p = { x: node.x, y: node.y };
-        for (let i = 0; i < 6; i++) p = clampOnce(circles, activeKeys, p, node);
-        node.x = p.x;
-        node.y = p.y;
+    // Force simulation only exists in dot mode — "show counts" has no
+    // per-item positions to resolve collisions between.
+    if (!showCounts) {
+        // Checking A, then B, then C once each per tick lets fixing one
+        // boundary re-break another (Gauss-Seidel problem) — run the clamp
+        // to convergence (~6 passes) per node per tick instead.
+        const clampToRegion = (node) => {
+            let p = { x: node.x, y: node.y };
+            for (let i = 0; i < 6; i++) p = clampOnce(circles, activeKeys, p, node);
+            node.x = p.x;
+            node.y = p.y;
+        };
+
+        sim = d3
+            .forceSimulation(hosts)
+            .force('collide', d3.forceCollide((d) => d.r + 0.6).iterations(3))
+            .alphaDecay(0.02)
+            .on('tick', () => {
+                hosts.forEach(clampToRegion);
+                dotSel.attr('cx', (d) => d.x).attr('cy', (d) => d.y);
+            });
+
+        if (prefersReducedMotion) {
+            sim.stop();
+            for (let i = 0; i < 300; i++) sim.tick();
+        }
     }
 
-    const sim = d3
-        .forceSimulation(hosts)
-        .force('collide', d3.forceCollide((d) => d.r + 0.6).iterations(3))
-        .alphaDecay(0.02)
-        .on('tick', () => {
-            hosts.forEach(clampToRegion);
-            dotSel.attr('cx', (d) => d.x).attr('cy', (d) => d.y);
+    // Everything above was sized against a conservative, worst-case label
+    // budget (see verticalMargin/horizontalMargin) rather than each
+    // label's actual (usually shorter) wrapped text — so there's normally
+    // real room left over. Rather than guess a fixed "grow by X%", measure
+    // the diagram's true rendered extent (circle bounds + each label's
+    // final, post-collision-avoidance box from labelBBox) and scale
+    // contentGroup up by exactly whatever fraction of that leftover room
+    // is actually there. Dots aren't measured separately — containment
+    // guarantees every dot sits within its circle, so circle bounds already
+    // cover them.
+    const contentBounds = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity };
+    const extendBounds = (x0, x1, y0, y1) => {
+        contentBounds.x0 = Math.min(contentBounds.x0, x0);
+        contentBounds.x1 = Math.max(contentBounds.x1, x1);
+        contentBounds.y0 = Math.min(contentBounds.y0, y0);
+        contentBounds.y1 = Math.max(contentBounds.y1, y1);
+    };
+    activeKeys.forEach((key) => {
+        const c = circles[key];
+        extendBounds(c.x - c.radius, c.x + c.radius, c.y - c.radius, c.y + c.radius);
+    });
+    labelEntries.forEach((entry) => {
+        const box = labelBBox(entry);
+        extendBounds(box.x0, box.x1, box.y0, box.y1);
+    });
+    // "Show counts" mode's region hit-areas are usually already covered by
+    // the circle bounds above, but not guaranteed — a very lopsided region
+    // (small area, far from its circles' own centers) could have a
+    // characteristic radius that pokes outside them. Cheap to just measure
+    // directly rather than assume.
+    if (countRegions) {
+        countRegions.forEach((r) => {
+            const hitRadius = Math.max(COUNT_HIT_RADIUS_MIN, Math.sqrt(r.area / Math.PI));
+            extendBounds(
+                r.centroid.x - hitRadius,
+                r.centroid.x + hitRadius,
+                r.centroid.y - hitRadius,
+                r.centroid.y + hitRadius
+            );
         });
-
-    if (prefersReducedMotion) {
-        sim.stop();
-        for (let i = 0; i < 300; i++) sim.tick();
     }
 
-    return { stop: () => sim.stop(), setActiveSet, animateOutCategory };
+    // Scaling happens around the SVG's own nominal center — the same point
+    // the outer flexbox already centers the whole svg on — rather than the
+    // content's own (possibly off-center, e.g. one label sticking out
+    // further than another) bounding-box center, so the result stays
+    // visually centered in the panel instead of drifting toward whichever
+    // side has more content.
+    const scaleOriginX = chartWidth / 2;
+    const scaleOriginY = chartHeight / 2;
+    const leftDist = scaleOriginX - contentBounds.x0;
+    const rightDist = contentBounds.x1 - scaleOriginX;
+    const topDist = scaleOriginY - contentBounds.y0;
+    const bottomDist = contentBounds.y1 - scaleOriginY;
+    const scaleX =
+        leftDist > 0 && rightDist > 0 ? availableWidth / 2 / Math.max(leftDist, rightDist) : 1;
+    const scaleY =
+        topDist > 0 && bottomDist > 0 ? availableHeight / 2 / Math.max(topDist, bottomDist) : 1;
+    // Never shrink at runtime — if measurement ever came out below 1 that
+    // would mean the sizing above already has a real overflow bug to fix
+    // properly (and be caught by the headless regression checks), not
+    // something to silently paper over by shrinking after the fact.
+    const fillScale = Math.max(1, Math.min(scaleX, scaleY));
+    if (fillScale > 1.001) {
+        contentGroup.attr(
+            'transform',
+            `translate(${scaleOriginX},${scaleOriginY}) scale(${fillScale}) translate(${-scaleOriginX},${-scaleOriginY})`
+        );
+    }
+
+    return { stop: () => sim?.stop(), setActiveSet, animateOutCategory };
 }
 
 // Inner content only — the outer .viz-container (background/corner-radius/
@@ -1140,7 +1541,7 @@ function EmptyState({ message }) {
 // `addDrilldownListener` registered once in VennVisualization reads it at
 // actual click time. Calling `triggerDrilldown` directly from onClick here
 // (an earlier version did) doesn't create real tokens in Studio.
-function Legend({ names, onHoverSet, onToggle, disabledCategoryNames, textColor, hoverTargetRef }) {
+function Legend({ names, onHoverSet, onToggle, disabledCategoryNames, textColor, hoverTargetRef, categoryColors }) {
     return (
         <div className="venn-legend">
             {REGION_KEYS.filter((k) => names[k]).map((k) => {
@@ -1153,7 +1554,11 @@ function Legend({ names, onHoverSet, onToggle, disabledCategoryNames, textColor,
                         onMouseEnter={() => {
                             onHoverSet(k);
                             if (hoverTargetRef) {
-                                hoverTargetRef.current = { name: names[k], 'row.color.value': CATEGORY_COLORS[k] };
+                                hoverTargetRef.current = {
+                                    name: names[k],
+                                    'row.color.value': categoryColors[k],
+                                    'row.categoryList.value': buildCategoryListToken([k], names),
+                                };
                             }
                         }}
                         onMouseLeave={() => {
@@ -1163,7 +1568,7 @@ function Legend({ names, onHoverSet, onToggle, disabledCategoryNames, textColor,
                         onClick={() => onToggle(names[k])}
                         title={isDisabled ? `Click to show ${names[k]}` : `Click to hide ${names[k]}`}
                     >
-                        <span className="venn-legend-swatch" style={{ background: CATEGORY_COLORS[k] }} />
+                        <span className="venn-legend-swatch" style={{ background: categoryColors[k] }} />
                         {names[k]}
                     </div>
                 );
@@ -1225,8 +1630,21 @@ function VennVisualization() {
     const backgroundColor = options?.backgroundColor || DEFAULT_BACKGROUND;
     const fillCircles = options?.fillCircles === true;
     const animateItems = options?.animateItems === true;
+    const showCounts = options?.showCounts === true;
     const labelSize = LABEL_FONT_SIZES[options?.labelSize] ? options.labelSize : DEFAULT_LABEL_SIZE;
     const legendTextColor = theme === 'light' ? LEGEND_TEXT_COLOR.light : LEGEND_TEXT_COLOR.dark;
+    // Positional, not name-based — "category color 1" always means
+    // whichever category is alphabetically first this render (region key
+    // A), same as the pre-existing region-key assignment already works.
+    // Kept as individual primitive values (not one object built once) so
+    // the renderVenn effect's dependency array below can list them directly
+    // — a fresh `{A,B,C}` object literal every render would otherwise
+    // never be dependency-equal to itself and re-trigger the effect
+    // constantly.
+    const categoryColorA = options?.categoryColorA || DEFAULT_CATEGORY_COLORS.A;
+    const categoryColorB = options?.categoryColorB || DEFAULT_CATEGORY_COLORS.B;
+    const categoryColorC = options?.categoryColorC || DEFAULT_CATEGORY_COLORS.C;
+    const categoryColors = { A: categoryColorA, B: categoryColorB, C: categoryColorC };
 
     useEffect(() => {
         const container = chartRef.current;
@@ -1249,14 +1667,34 @@ function VennVisualization() {
             animateItems,
             backgroundColor,
             labelSize,
-            hoverTargetRef
+            hoverTargetRef,
+            categoryColors,
+            showCounts
         );
         rendererRef.current = handle;
         return () => {
             rendererRef.current = null;
             handle.stop();
         };
-    }, [hosts, width, height, names, legendPos, fillCircles, animateItems, backgroundColor, labelSize]);
+        // categoryColors itself is a fresh object every render (see above)
+        // — depend on its primitive fields instead so this doesn't refire
+        // needlessly.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+        hosts,
+        width,
+        height,
+        names,
+        legendPos,
+        fillCircles,
+        animateItems,
+        showCounts,
+        backgroundColor,
+        labelSize,
+        categoryColorA,
+        categoryColorB,
+        categoryColorC,
+    ]);
 
     // ONE addDrilldownListener for the whole viz (dots, parent circles, and
     // legend items all funnel through it via hoverTargetRef) rather than
@@ -1363,6 +1801,7 @@ function VennVisualization() {
                         onToggle={handleLegendToggle}
                         textColor={legendTextColor}
                         hoverTargetRef={hoverTargetRef}
+                        categoryColors={categoryColors}
                     />
                 )}
             </div>

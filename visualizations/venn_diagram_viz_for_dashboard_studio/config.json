@@ -38,6 +38,22 @@
       "animateItems": {
         "type": "boolean",
         "default": false
+      },
+      "showCounts": {
+        "type": "boolean",
+        "default": false
+      },
+      "categoryColorA": {
+        "type": "string",
+        "default": "#5fb3d9"
+      },
+      "categoryColorB": {
+        "type": "string",
+        "default": "#d9a441"
+      },
+      "categoryColorC": {
+        "type": "string",
+        "default": "#d9564f"
       }
     },
     "editorConfig": [
@@ -94,6 +110,35 @@
               "label": "Animate items",
               "editor": "editor.checkbox",
               "option": "animateItems"
+            }
+          ],
+          [
+            {
+              "label": "Show counts instead of dots",
+              "editor": "editor.checkbox",
+              "option": "showCounts"
+            }
+          ]
+        ]
+      },
+      {
+        "label": "Category colors",
+        "layout": [
+          [
+            {
+              "label": "Category color 1",
+              "editor": "editor.color",
+              "option": "categoryColorA"
+            },
+            {
+              "label": "Category color 2",
+              "editor": "editor.color",
+              "option": "categoryColorB"
+            },
+            {
+              "label": "Category color 3",
+              "editor": "editor.color",
+              "option": "categoryColorC"
             }
           ]
         ]

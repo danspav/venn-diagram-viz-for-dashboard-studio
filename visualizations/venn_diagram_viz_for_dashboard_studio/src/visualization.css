@@ -233,6 +233,43 @@
     transform: scale(1);
 }
 
+/* "Show counts" mode (alternative to individually packed dots — see
+   renderVenn) — one number per region instead of one dot per item. The
+   circle is a transparent, generously-sized (see HIT_RADIUS_MIN in
+   renderVenn) hover/click target, since the actual region shape is an
+   irregular crescent/lens we only approximate with a circle; the number
+   itself has pointer-events:none so hover always lands on the circle
+   beneath it, however small the digits are. Hover feedback comes entirely
+   from the parent circle(s) highlighting (setActiveSet) and the tooltip —
+   the hit-area circle itself stays invisible even on hover, since a
+   visible fill on it would just be a rough, misleading approximation of
+   the region's true (crescent/lens) shape drawn behind the digits. */
+.region-hit-area {
+    fill: transparent;
+    cursor: pointer;
+}
+.region-count {
+    font-family: inherit;
+    font-weight: 700;
+    text-anchor: middle;
+    dominant-baseline: middle;
+    pointer-events: none;
+    fill: #ffffff;
+    fill-opacity: 1;
+    /* A thin grey outline (not the earlier background-colored 3px halo,
+       which blobbed into a "fuzzy" mess at these font sizes) — thin
+       enough to just define the glyph edge against whatever's behind it
+       (dark background, a colored region fill, an overlap blend) without
+       thickening the digits themselves. paint-order draws it under the
+       fill so it reads as an edge, not a doubled outline. --venn-line is
+       the same muted grey already used for borders elsewhere in this file
+       (tooltip, etc.), not a one-off new color. */
+    paint-order: stroke;
+    stroke: var(--venn-line);
+    stroke-width: 1px;
+    stroke-linejoin: round;
+}
+
 .venn-tooltip {
     position: absolute;
     left: 0;

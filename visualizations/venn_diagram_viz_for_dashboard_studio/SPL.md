@@ -147,6 +147,23 @@ that aren't literally raw SPL columns:
 - **A legend item** — same as a parent circle: `name` and
   `row.color.value`. Clicking a legend item still also toggles that
   category on/off as before — both happen on the same click.
+- **A region's count** (only in "Show counts" mode, see below) — `name`
+  (the category name(s) that region belongs to, e.g. `Category A +
+  Category B`), `value` (the item count shown), `row.totalValue.value`
+  (the sum of those items' own values), and `row.color.value` (the
+  region's blended color).
+
+## "Show counts instead of dots" option
+
+For datasets with too many items to read as individual packed dots, the
+"Show counts instead of dots" checkbox replaces every region's dots with a
+single number — the item count for that exact combination of categories
+(there are up to 7: 3 single-category regions, 3 pairwise overlaps, and the
+center where all 3 overlap). Hovering a number highlights its category
+circle(s) and shows a tooltip with the exact count and total value — this
+is deliberately a tooltip rather than literally magnifying part of the
+diagram, so the tiny center region (all 3 categories overlapping) stays
+just as readable as any other without a different interaction to learn.
 
 In the dashboard's "On Click" editor, reference these with `key:
 "row.tooltip.value"` etc. (not a bare `tooltip`) when configuring which
