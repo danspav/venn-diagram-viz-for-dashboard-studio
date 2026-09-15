@@ -32,18 +32,22 @@ const TRIPLE_COMBO = ['A', 'B', 'C'];
 // existing region-key assignment already behaves.
 const DEFAULT_CATEGORY_COLORS = { A: '#5fb3d9', B: '#d9a441', C: '#d9564f' };
 
-// Row shapes are positional EXCEPT for `value`/`tooltip`: if a field is
-// literally named one of those (case-insensitive), that column is used
-// regardless of where it sits, and only the remaining columns (item +
-// 1-3 categories) are read by position. Neither, either, or both may be
-// named — whatever's left over always reads as item first, then
-// categories, then (only for whichever of value/tooltip ISN'T named) that
-// field last, in that order:
-//   item, category(1-3)[, value][, tooltip]
+// `category` is a required, literally-named field (case-insensitive) —
+// unlike the old positional/multi-category shape, there is exactly one
+// category value per row, always read by name, never by position. This is
+// what lets row.splFilter.value below generate a plain `category="X"` SPL
+// term: a fixed, known field name, with only the VALUE ever needing
+// quoting (a values-with-spaces problem SPL already handles natively),
+// rather than a field name that could be anything the search author chose.
+// `value`/`tooltip` keep their original behavior: if a field is literally
+// named one of those (case-insensitive), that column is used regardless of
+// where it sits; otherwise it's read positionally from whatever's left
+// after item and category are removed. Only `item` is ever purely
+// positional now — always whatever column remains once category/value/
+// tooltip are accounted for:
+//   item, category[, value][, tooltip]
 // The same item can also span MULTIPLE rows (one row per category is the
 // natural output of `stats ... by item, category` in SPL) — see buildItems.
-const MIN_ROW_COLUMNS = 4; // item + 1 category + value + tooltip, all positional
-const MAX_ROW_COLUMNS = 6; // item + 3 categories + value + tooltip, all positional
 
 const PACKING_EFFICIENCY = 0.82;
 const DENSITY_SAMPLES = 40000;
@@ -120,56 +124,67 @@ const LABEL_HORIZONTAL_MARGIN = LABEL_OFFSET + LABEL_SIDE_MAX_WIDTH;
 // panel edge for a circle sitting near the outer edge of the layout.
 const LABEL_MIDDLE_HORIZONTAL_MARGIN = 40;
 
-// Positional for item/categories — a search author can name those columns
-// whatever they want (`| table host, category, description`). value and
-// tooltip are the exception: if a field is literally named one of those,
-// it's used by name regardless of position (see parseRow).
+// `category` is required and always read by name; `value`/`tooltip` are
+// read by name when a field is literally called that (case-insensitive),
+// falling back positionally otherwise (see parseRow). `item` is whatever
+// column is left over once those are accounted for.
 function toPositionalRows(data) {
     if (!data || !data.fields || !data.columns || data.columns.length === 0) {
-        return { rows: [], namedIndices: { valueIndex: -1, tooltipIndex: -1 }, fieldNames: [] };
+        return {
+            rows: [],
+            namedIndices: { categoryIndex: -1, valueIndex: -1, tooltipIndex: -1 },
+            fieldNames: [],
+        };
     }
     const numCols = data.fields.length;
     const numRows = data.columns[0]?.length ?? 0;
     const fieldNames = data.fields.map((f) => String(f?.name ?? f ?? '').trim());
     const findNamed = (name) => fieldNames.findIndex((n) => n.toLowerCase() === name);
-    const namedIndices = { valueIndex: findNamed('value'), tooltipIndex: findNamed('tooltip') };
+    const namedIndices = {
+        categoryIndex: findNamed('category'),
+        valueIndex: findNamed('value'),
+        tooltipIndex: findNamed('tooltip'),
+    };
     const rows = Array.from({ length: numRows }, (_, i) =>
         Array.from({ length: numCols }, (_, j) => data.columns[j][i])
     );
     return { rows, namedIndices, fieldNames };
 }
 
-// One row -> { item, categories, value, tooltip }, or null if the row's
-// column count doesn't match any supported shape or it names no categories.
-// `namedIndices` gives the column index of a field literally named "value"
-// and/or "tooltip" (-1 if absent) — those are pulled out by index first;
-// whichever of the two ISN'T named still reads positionally from whatever
-// columns are left, exactly as if that were the only supported shape.
+// One row -> { item, categories, value, tooltip }, or null if there's no
+// "category" field, it's blank on this row, or the remaining column count
+// doesn't match the supported shape. `categories` stays a single-element
+// array (rather than a bare string) so buildItems' union-across-rows logic
+// below needs no special-casing versus the old multi-category shape.
+// `namedIndices` gives the column index of a field literally named
+// "category" (required), "value", and "tooltip" (both optional — absent
+// falls back positionally from whatever's left after item and category are
+// pulled out).
 function parseRow(row, namedIndices) {
-    const { valueIndex, tooltipIndex } = namedIndices;
-    const hasNamedValue = valueIndex >= 0 && valueIndex < row.length;
-    const hasNamedTooltip = tooltipIndex >= 0 && tooltipIndex < row.length;
-    const excluded = new Set([hasNamedValue ? valueIndex : -1, hasNamedTooltip ? tooltipIndex : -1]);
+    const { categoryIndex, valueIndex, tooltipIndex } = namedIndices;
+    if (categoryIndex < 0 || categoryIndex >= row.length) return null;
+    const categoryRaw = row[categoryIndex];
+    const category = categoryRaw == null ? '' : String(categoryRaw).trim();
+    if (category === '') return null;
+
+    const hasNamedValue = valueIndex >= 0 && valueIndex < row.length && valueIndex !== categoryIndex;
+    const hasNamedTooltip = tooltipIndex >= 0 && tooltipIndex < row.length && tooltipIndex !== categoryIndex;
+    const excluded = new Set([categoryIndex, hasNamedValue ? valueIndex : -1, hasNamedTooltip ? tooltipIndex : -1]);
     const cells = row.filter((_, i) => !excluded.has(i));
     const numCols = cells.length;
 
-    // Each named field removes one positional slot this row still needs to
-    // fill by position (item + >=1 category, plus whichever of value/
-    // tooltip wasn't named).
+    // Each named field (besides category, already pulled out above) removes
+    // one positional slot this row still needs to fill by position (item,
+    // plus whichever of value/tooltip wasn't named).
     const reservedTrailingSlots = (hasNamedValue ? 0 : 1) + (hasNamedTooltip ? 0 : 1);
-    const minCols = MIN_ROW_COLUMNS - 2 + reservedTrailingSlots;
-    const maxCols = MAX_ROW_COLUMNS - 2 + reservedTrailingSlots;
+    const minCols = 1 + reservedTrailingSlots;
+    const maxCols = minCols;
     if (numCols < minCols || numCols > maxCols) return null;
 
     const item = cells[0];
     if (item == null || item === '') return null;
 
-    const categoryEnd = numCols - reservedTrailingSlots;
-    const categories = cells
-        .slice(1, categoryEnd)
-        .map((c) => (c == null ? '' : String(c).trim()))
-        .filter((c) => c !== '');
-    if (categories.length === 0) return null;
+    const categories = [category];
 
     let valueRaw;
     let tooltipRaw;
@@ -194,13 +209,13 @@ function parseRow(row, namedIndices) {
     return { item: String(item), categories, value, tooltip };
 }
 
-// Groups parsed rows by item. The same item can arrive across MULTIPLE rows
-// (one row per category — the natural shape of `stats ... by item,
-// category` in SPL) as well as within a single row already listing 2-3
-// categories at once; both collapse to the same shape here. Value SUMS
-// across every contributing row (dot size reflects total signal for that
-// item); tooltip keeps one line per row rather than picking or dropping one,
-// so nothing observed for that item is silently lost.
+// Groups parsed rows by item. The same item arrives across MULTIPLE rows
+// when it belongs to more than one category — the natural shape of
+// `stats ... by item, category` in SPL, one row per (item, category) pair
+// since category is now single-valued per row. Value SUMS across every
+// contributing row (dot size reflects total signal for that item); tooltip
+// keeps one line per row rather than picking or dropping one, so nothing
+// observed for that item is silently lost.
 //
 // `rawFields` also accumulates the row's ORIGINAL column names (whatever the
 // search author called them — `host`, `count`, etc., not our internal
@@ -208,10 +223,8 @@ function parseRow(row, namedIndices) {
 // SPL-supplied field as a `row.<field>.value` token, same as other vizzes in
 // this project do. When an item spans multiple rows, the last NON-BLANK
 // value for a given field name wins (skips null/undefined/'') rather than a
-// blind last-one-wins — the 5/6-column shapes (2-3 category columns) only
-// populate whichever category column that particular row actually uses and
-// leave the others blank, so a plain overwrite would let a later row's
-// blank silently erase an earlier row's real value for an unrelated column.
+// blind last-one-wins, so a later row's blank cell in some unrelated column
+// doesn't silently erase an earlier row's real value for it.
 function buildItems(rows, namedIndices, fieldNames) {
     const byItem = new Map();
     rows.forEach((row) => {
@@ -380,29 +393,33 @@ function buildCategoryListToken(keys, names) {
 }
 
 // A base-search filter expression for "items in this exact region" — the
-// opposite intent from row.categoryList.value's IN() union above. Assumes
-// the downstream search has a boolean field per category (as in the
-// CLAUDE.md sample data's in_A/in_B/in_C pattern) named after that
-// category's own display name. Field names are double-quoted (Splunk's
-// search-bar syntax for a field name containing spaces) rather than
-// single-quoted like a `where`-command identifier would need — this token
-// is meant to be dropped into a bare `| search ...` term, not a `where`
-// clause, where double quotes would instead be read as a string literal.
+// opposite intent from row.categoryList.value's IN() union above. Targets
+// the same `category` field the data contract now fixes the column name to
+// (see the comment on MIN_ROW_COLUMNS above), so there's no field-name
+// quoting question at all here — only the VALUE ever needs quoting (escaped
+// the same way buildCategoryListToken already does), which is ordinary SPL
+// string-literal syntax regardless of whether it contains spaces. This is
+// meant for a search where `category` is multivalued per item — e.g. right
+// after `| stats values(category) as category by item` — since Splunk
+// matches each term of a multivalue field independently: `category="A" AND
+// category="B"` matches an item whose category values include BOTH, which
+// is exactly the intersection semantics this needs. Run directly against
+// the viz's own one-row-per-item-per-category table (before that stats
+// step collapses it), this would never match anything, since a single row
+// only ever has ONE category value.
 //
 // `exact: true` (a dot, or one region-count's number — both represent a
 // single mutually-exclusive Venn region, matching regionKeyOf's exact/
 // sorted membership grouping) ANDs in every OTHER present category as
-// `NOT "<category>"=1`, so e.g. the A∩B sliver's filter doesn't also match
-// items that are actually in the A∩B∩C center. `exact: false` (a parent
-// circle or legend item — the WHOLE circle: A-only plus every overlap A
-// participates in) omits those NOT clauses.
+// `NOT category="<category>"`, so e.g. the A∩B sliver's filter doesn't also
+// match items that are actually in the A∩B∩C center. `exact: false` (a
+// parent circle or legend item — the WHOLE circle: A-only plus every
+// overlap A participates in) omits those NOT clauses.
 function buildSplFilterToken(keys, names, exact = true) {
-    const quote = (name) => `"${String(name).replace(/"/g, '\\"')}"`;
-    const included = keys.map((k) => `${quote(names[k])}=1`);
+    const term = (name) => `category="${String(name).replace(/"/g, '\\"')}"`;
+    const included = keys.map((k) => term(names[k]));
     if (!exact) return included.join(' AND ');
-    const excluded = REGION_KEYS.filter((k) => names[k] && !keys.includes(k)).map(
-        (k) => `NOT ${quote(names[k])}=1`
-    );
+    const excluded = REGION_KEYS.filter((k) => names[k] && !keys.includes(k)).map((k) => `NOT ${term(names[k])}`);
     return [...included, ...excluded].join(' AND ');
 }
 
@@ -515,14 +532,27 @@ function bboxForIncluded(circles, keys) {
     return { minX, maxX, minY, maxY };
 }
 
-function classify(circles, activeKeys, x, y) {
-    const included = activeKeys.filter((key) => {
+// Classifies a point into its region key AND how deep inside that region it
+// sits: the smallest distance from the point to any relevant circle's
+// boundary (a large positive margin means well clear of every boundary; a
+// point right on its own region's edge scores near 0). Used to pick region
+// label positions that are actually INSIDE the region — see the comment on
+// the region-label sampling loop below for why the margin matters (a plain
+// average of matching samples isn't safe for a crescent-shaped region).
+function classifyWithMargin(circles, activeKeys, x, y) {
+    const included = [];
+    let margin = Infinity;
+    activeKeys.forEach((key) => {
         const c = circles[key];
         const dx = x - c.x;
         const dy = y - c.y;
-        return Math.sqrt(dx * dx + dy * dy) <= c.radius;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const isIn = dist <= c.radius;
+        if (isIn) included.push(key);
+        const m = isIn ? c.radius - dist : dist - c.radius;
+        if (m < margin) margin = m;
     });
-    return included.sort().join(',');
+    return { key: included.sort().join(','), margin };
 }
 
 // Pure geometry pipeline (no DOM) — venn.js's own VennDiagram() chart never
@@ -835,34 +865,122 @@ function renderVenn(
     // Region density (Monte Carlo area estimation) serves two different
     // purposes depending on mode: in dot mode, capping how many dots a thin
     // crescent region can actually hold without spilling outside it; in
-    // "show counts" mode, placing each region's number at a point
-    // genuinely inside that region (the average of the samples that landed
-    // in it) and sizing its text/hit-area off the region's real area. The
-    // samples' own average position is a much better label point than, say,
-    // the geometric centroid of the region's bounding circles, which for a
-    // crescent-shaped exclusive region can land outside the region itself.
+    // "show counts" mode (and now the invisible per-region hit-area shared
+    // with dots mode too), placing each region's number/hit-area at a point
+    // genuinely inside that region and sizing its text/hit-area off the
+    // region's real area.
+    //
+    // The label point is the sample with the BIGGEST margin (furthest from
+    // any relevant circle boundary), not the average of all matching
+    // samples — a region like "C only" is typically crescent-shaped
+    // (non-convex), and the plain average of points scattered across a
+    // crescent can itself land outside the crescent, often inside a
+    // NEIGHBORING circle. Confirmed as a real, frequent bug (not
+    // theoretical) via a headless stress test: ~69% of random 3-set
+    // distributions produced at least one region whose averaged centroid
+    // failed its own containment test — visible in practice as a region's
+    // count rendering inside a different circle than the one it belongs to.
+    // Picking the best-margin actual sample instead guarantees the chosen
+    // point really is inside the region, since it's a literal member of it.
     const areaCounts = {};
-    const regionSumX = {};
-    const regionSumY = {};
+    const bestMargin = {};
+    const bestPoint = {};
     for (let i = 0; i < DENSITY_SAMPLES; i++) {
         const x = Math.random() * chartWidth;
         const y = Math.random() * chartHeight;
-        const key = classify(circles, activeKeys, x, y);
-        if (key) {
-            areaCounts[key] = (areaCounts[key] || 0) + 1;
-            regionSumX[key] = (regionSumX[key] || 0) + x;
-            regionSumY[key] = (regionSumY[key] || 0) + y;
+        const { key, margin } = classifyWithMargin(circles, activeKeys, x, y);
+        if (!key) continue;
+        areaCounts[key] = (areaCounts[key] || 0) + 1;
+        if (bestMargin[key] === undefined || margin > bestMargin[key]) {
+            bestMargin[key] = margin;
+            bestPoint[key] = { x, y };
         }
     }
     const boxArea = chartWidth * chartHeight;
     const regionArea = {};
-    const regionCentroid = {};
     Object.keys(areaCounts).forEach((key) => {
         regionArea[key] = (areaCounts[key] / DENSITY_SAMPLES) * boxArea;
-        regionCentroid[key] = { x: regionSumX[key] / areaCounts[key], y: regionSumY[key] / areaCounts[key] };
     });
 
     const hostsByRegion = d3.group(hosts, (h) => regionKeyOf(h.memberships));
+
+    // A region real hosts belong to can still get ZERO hits from the broad
+    // canvas-wide pass above when its true area is very thin. Retry with a
+    // denser pass confined to just that region's own bounding-box
+    // INTERSECTION (still verified via classifyWithMargin, so a retry
+    // sample that merely falls in the intersection box without truly
+    // satisfying every circle's in/out test is correctly rejected).
+    const RETRY_SAMPLES = 5000;
+    hostsByRegion.forEach((_regionHosts, key) => {
+        if (bestPoint[key]) return;
+        const memberKeys = key.split(',').filter(Boolean);
+        const bb = bboxForIncluded(circles, memberKeys);
+        if (bb.minX >= bb.maxX || bb.minY >= bb.maxY) return;
+        for (let i = 0; i < RETRY_SAMPLES; i++) {
+            const x = bb.minX + Math.random() * (bb.maxX - bb.minX);
+            const y = bb.minY + Math.random() * (bb.maxY - bb.minY);
+            const sample = classifyWithMargin(circles, activeKeys, x, y);
+            if (sample.key !== key) continue;
+            if (bestMargin[key] === undefined || sample.margin > bestMargin[key]) {
+                bestMargin[key] = sample.margin;
+                bestPoint[key] = { x, y };
+            }
+        }
+    });
+
+    // Still nothing? The region's true intersection is geometrically EMPTY
+    // — no point satisfies every circle's in/out test at once. This is a
+    // real, inherent limitation of venn.js's 2-circle-overlap approximation
+    // (most common for the A∩B∩C center: the solver can't always achieve a
+    // genuine 3-way overlap for every size combination it's asked for), not
+    // something better sampling can fix — there IS no correct location.
+    // Rather than the old bounding-box-INTERSECTION center (which, for a
+    // combination with no true overlap, is frequently a nonsensical point
+    // that isn't even inside 2 of the 3 circles — the actual root cause of
+    // the "number rendered in a neighboring circle" bug this whole
+    // Monte-Carlo rework was fixing), search the bounding-box UNION of the
+    // member circles for whichever point comes CLOSEST to satisfying every
+    // one of them (least-negative margin) — typically ending up right at
+    // the edge of whichever two circles overlap most, which reads visually
+    // as "as close to correct as this layout allows" instead of landing
+    // somewhere arbitrary.
+    const NEAR_MISS_SAMPLES = 8000;
+    hostsByRegion.forEach((_regionHosts, key) => {
+        if (bestPoint[key]) return;
+        const memberKeys = key.split(',').filter(Boolean);
+        let minX = Infinity;
+        let maxX = -Infinity;
+        let minY = Infinity;
+        let maxY = -Infinity;
+        memberKeys.forEach((k) => {
+            const c = circles[k];
+            minX = Math.min(minX, c.x - c.radius);
+            maxX = Math.max(maxX, c.x + c.radius);
+            minY = Math.min(minY, c.y - c.radius);
+            maxY = Math.max(maxY, c.y + c.radius);
+        });
+        let best = -Infinity;
+        let bestPt = null;
+        for (let i = 0; i < NEAR_MISS_SAMPLES; i++) {
+            const x = minX + Math.random() * (maxX - minX);
+            const y = minY + Math.random() * (maxY - minY);
+            let margin = Infinity;
+            memberKeys.forEach((k) => {
+                const c = circles[k];
+                const dist = Math.sqrt((x - c.x) ** 2 + (y - c.y) ** 2);
+                const m = c.radius - dist;
+                if (m < margin) margin = m;
+            });
+            if (margin > best) {
+                best = margin;
+                bestPt = { x, y };
+            }
+        }
+        bestMargin[key] = best;
+        bestPoint[key] = bestPt;
+    });
+
+    const regionCentroid = bestPoint;
 
     if (!showCounts) {
         hostsByRegion.forEach((regionHosts, key) => {
@@ -1174,15 +1292,146 @@ function renderVenn(
 
         tooltip.style('left', `${left}px`).style('top', `${top}px`);
     }
-    // Assigned inside whichever branch below actually runs; referenced
-    // later by setActiveSet/animateOutCategory/the returned handle, which
-    // need to work correctly regardless of which mode rendered.
+    // Assigned below; referenced later by setActiveSet/animateOutCategory/
+    // the returned handle, which need to work correctly regardless of mode.
     let dotSel = null;
     let sim = null;
-    let countGroupSel = null;
-    let countRegions = null;
+
+    // Region hit-areas: an invisible (in dots mode) or numbered (in "show
+    // counts" mode) circle per actual Venn region (up to 7: 3 singles, 3
+    // pairwise overlaps, the center), ALWAYS created regardless of mode —
+    // this is what lets clicking background INSIDE a circle (not on a dot)
+    // resolve to the specific exact region under the cursor, matching
+    // "show counts" mode's existing per-region click/hover behavior, rather
+    // than always falling through to the whole-category circle fill
+    // beneath. Appended before dotLayer (below), so in dots mode a dot
+    // painted on top of a hit-area still wins for any pixel it covers, but
+    // background between/around dots still lands here instead of on the
+    // fill. Wherever neither a dot nor a hit-area's circular approximation
+    // reaches (small gaps near a crescent's true boundary, or the area
+    // just outside every hit-area but still inside the circle fill), the
+    // click still falls through to the parent-circle fill's own
+    // whole-category handler further below — which is exactly the "click
+    // the border = whole category" behavior, without needing a literal
+    // separate border hit-target.
+    const regionLayer = contentGroup.append('g').attr('class', 'venn-region-layer');
+    const regions = [...hostsByRegion.entries()]
+        .map(([key, regionHosts]) => {
+            const memberKeys = key.split(',').filter(Boolean);
+            const fallbackCenter = () => {
+                const bb = bboxForIncluded(circles, memberKeys);
+                return { x: (bb.minX + bb.maxX) / 2, y: (bb.minY + bb.maxY) / 2 };
+            };
+            return {
+                key,
+                memberKeys,
+                count: regionHosts.length,
+                totalValue: d3.sum(regionHosts, (h) => h.value),
+                area: regionArea[key] || 0,
+                // regionCentroid now always has an entry for every key in
+                // hostsByRegion (populated by the main sample pass, the
+                // targeted intersection retry, or the near-miss search —
+                // see the Monte Carlo block above), so this never actually
+                // fires; kept as a last-resort safety net rather than an
+                // unguarded lookup.
+                centroid: regionCentroid[key] || fallbackCenter(),
+            };
+        })
+        // Render biggest-area first (painted on the bottom) and
+        // smallest last (on top) — their circular hit-areas are only
+        // an approximation of the true (often crescent-shaped) region,
+        // so they can overlap slightly; this ordering makes sure the
+        // most specific region always wins that overlap, which matters
+        // most for the tiny A∩B∩C center sitting inside 3 much larger
+        // regions' approximate hit-areas.
+        .sort((a, b) => b.area - a.area);
+
+    const regionGroups = regionLayer
+        .selectAll('g.venn-region')
+        .data(regions, (r) => r.key)
+        .join('g')
+        .attr('class', 'venn-region')
+        .attr('data-member-keys', (r) => r.key);
+    const countGroupSel = regionGroups;
+    const countRegions = regions;
+
+    regionGroups.each(function (r) {
+        const g = d3.select(this);
+        const hitRadius = Math.max(COUNT_HIT_RADIUS_MIN, Math.sqrt(r.area / Math.PI));
+
+        g.append('circle')
+            .attr('class', 'region-hit-area')
+            .attr('cx', r.centroid.x)
+            .attr('cy', r.centroid.y)
+            .attr('r', hitRadius);
+
+        // The visible number is "show counts" mode only — in dots mode
+        // this group exists purely as an invisible hit-area beneath the
+        // dots, so items stay legible rather than getting a number
+        // stamped over them too.
+        if (showCounts) {
+            const fontSize = Math.max(COUNT_FONT_MIN, Math.min(COUNT_FONT_MAX, hitRadius * 0.9));
+            g.append('text')
+                .attr('class', 'region-count')
+                .attr('x', r.centroid.x)
+                .attr('y', r.centroid.y)
+                .style('font-size', `${fontSize}px`)
+                .text(r.count);
+        }
+    });
+
+    function regionDisplayName(r) {
+        return r.memberKeys.map((k) => names[k]).join(' + ');
+    }
+    function buildRegionDrilldownPayload(r) {
+        return {
+            name: regionDisplayName(r),
+            value: r.count,
+            'row.totalValue.value': r.totalValue,
+            'row.color.value': blend(r.memberKeys, categoryColors),
+            'row.categoryList.value': buildCategoryListToken(r.memberKeys, names),
+            'row.splFilter.value': buildSplFilterToken(r.memberKeys, names),
+        };
+    }
+
+    regionGroups
+        .on('mouseenter', (_event, r) => {
+            // No visible fill on the hit-area circle itself (see the
+            // CSS comment on .region-hit-area) — hover feedback is just
+            // the parent circle(s) highlighting plus this tooltip.
+            setActiveSet(r.memberKeys);
+            tooltip.selectAll('*').remove();
+            tooltip.append('div').attr('class', 'venn-tooltip-id').text(regionDisplayName(r));
+            tooltip.append('div').text(`${r.count} item${r.count === 1 ? '' : 's'}`);
+            tooltip.append('div').text(`Total value: ${r.totalValue}`);
+            tooltip.classed('venn-tooltip--visible', true);
+            if (hoverTargetRef) hoverTargetRef.current = buildRegionDrilldownPayload(r);
+        })
+        .on('mousemove', (event) => {
+            const [x, y] = d3.pointer(event, wrap.node());
+            positionTooltip(x, y);
+        })
+        .on('mouseleave', () => {
+            setActiveSet(null);
+            tooltip.classed('venn-tooltip--visible', false);
+            if (hoverTargetRef) hoverTargetRef.current = null;
+        });
+
+    // Numbers fade in with the rest of "show counts" mode's entrance —
+    // skipped in dots mode, where this layer is invisible anyway.
+    if (showCounts && !prefersReducedMotion) {
+        regionGroups
+            .style('opacity', 0)
+            .transition()
+            .duration(ENTRANCE_DURATION_MS)
+            .delay(() => Math.random() * ENTRANCE_STAGGER_MAX_MS)
+            .style('opacity', 1);
+    }
 
     if (!showCounts) {
+    // Dots paint AFTER (on top of) regionLayer, so a dot always wins the
+    // click/hover over the region hit-area sitting beneath it at the same
+    // pixel — see the comment on regionLayer above for the full hierarchy.
     const dotLayer = contentGroup.append('g').attr('class', 'dot-layer');
     dotSel = dotLayer
         .selectAll('circle.host-dot')
@@ -1255,116 +1504,6 @@ function renderVenn(
             tooltip.classed('venn-tooltip--visible', false);
             if (hoverTargetRef) hoverTargetRef.current = null;
         });
-    } else {
-        // "Show counts" mode: one number per region (all 7 possible A/B/C
-        // combinations, whichever actually have items) instead of packed
-        // dots — for when there are too many items to read individually.
-        // Legibility of the tiniest region (almost always the 3-way
-        // center) comes from a hover tooltip with the exact figures,
-        // rather than literal on-hover magnification of part of the SVG —
-        // simpler to get right and consistent with how dots already work.
-        const countsLayer = contentGroup.append('g').attr('class', 'count-layer');
-        const regions = [...hostsByRegion.entries()]
-            .map(([key, regionHosts]) => {
-                const memberKeys = key.split(',').filter(Boolean);
-                const fallbackCenter = () => {
-                    const bb = bboxForIncluded(circles, memberKeys);
-                    return { x: (bb.minX + bb.maxX) / 2, y: (bb.minY + bb.maxY) / 2 };
-                };
-                return {
-                    key,
-                    memberKeys,
-                    count: regionHosts.length,
-                    totalValue: d3.sum(regionHosts, (h) => h.value),
-                    area: regionArea[key] || 0,
-                    // Falls back to the bounding-circles' center on the rare
-                    // chance a region is real (has items) but too thin for
-                    // any of the 40k density samples to have landed in it.
-                    centroid: regionCentroid[key] || fallbackCenter(),
-                };
-            })
-            // Render biggest-area first (painted on the bottom) and
-            // smallest last (on top) — their circular hit-areas are only
-            // an approximation of the true (often crescent-shaped) region,
-            // so they can overlap slightly; this ordering makes sure the
-            // most specific region always wins that overlap, which matters
-            // most for the tiny A∩B∩C center sitting inside 3 much larger
-            // regions' approximate hit-areas.
-            .sort((a, b) => b.area - a.area);
-
-        const regionGroups = countsLayer
-            .selectAll('g.count-region')
-            .data(regions, (r) => r.key)
-            .join('g')
-            .attr('class', 'count-region')
-            .attr('data-member-keys', (r) => r.key);
-        countGroupSel = regionGroups;
-        countRegions = regions;
-
-        regionGroups.each(function (r) {
-            const g = d3.select(this);
-            const hitRadius = Math.max(COUNT_HIT_RADIUS_MIN, Math.sqrt(r.area / Math.PI));
-            const fontSize = Math.max(COUNT_FONT_MIN, Math.min(COUNT_FONT_MAX, hitRadius * 0.9));
-
-            g.append('circle')
-                .attr('class', 'region-hit-area')
-                .attr('cx', r.centroid.x)
-                .attr('cy', r.centroid.y)
-                .attr('r', hitRadius);
-
-            g.append('text')
-                .attr('class', 'region-count')
-                .attr('x', r.centroid.x)
-                .attr('y', r.centroid.y)
-                .style('font-size', `${fontSize}px`)
-                .text(r.count);
-        });
-
-        function regionDisplayName(r) {
-            return r.memberKeys.map((k) => names[k]).join(' + ');
-        }
-        function buildRegionDrilldownPayload(r) {
-            return {
-                name: regionDisplayName(r),
-                value: r.count,
-                'row.totalValue.value': r.totalValue,
-                'row.color.value': blend(r.memberKeys, categoryColors),
-                'row.categoryList.value': buildCategoryListToken(r.memberKeys, names),
-                'row.splFilter.value': buildSplFilterToken(r.memberKeys, names),
-            };
-        }
-
-        regionGroups
-            .on('mouseenter', (_event, r) => {
-                // No visible fill on the hit-area circle itself (see the
-                // CSS comment on .region-hit-area) — hover feedback is just
-                // the parent circle(s) highlighting plus this tooltip.
-                setActiveSet(r.memberKeys);
-                tooltip.selectAll('*').remove();
-                tooltip.append('div').attr('class', 'venn-tooltip-id').text(regionDisplayName(r));
-                tooltip.append('div').text(`${r.count} item${r.count === 1 ? '' : 's'}`);
-                tooltip.append('div').text(`Total value: ${r.totalValue}`);
-                tooltip.classed('venn-tooltip--visible', true);
-                if (hoverTargetRef) hoverTargetRef.current = buildRegionDrilldownPayload(r);
-            })
-            .on('mousemove', (event) => {
-                const [x, y] = d3.pointer(event, wrap.node());
-                positionTooltip(x, y);
-            })
-            .on('mouseleave', () => {
-                setActiveSet(null);
-                tooltip.classed('venn-tooltip--visible', false);
-                if (hoverTargetRef) hoverTargetRef.current = null;
-            });
-
-        if (!prefersReducedMotion) {
-            regionGroups
-                .style('opacity', 0)
-                .transition()
-                .duration(ENTRANCE_DURATION_MS)
-                .delay(() => Math.random() * ENTRANCE_STAGGER_MAX_MS)
-                .style('opacity', 1);
-        }
     }
 
     // Activating a set (by hovering its circle, an intersection region's
@@ -1835,7 +1974,7 @@ function VennVisualization() {
         chartContent = <EmptyState message="No data available" />;
     } else if (fullHosts.length === 0) {
         chartContent = (
-            <EmptyState message="No valid rows found. Expected columns: item, category (1-3 of them), value, tooltip." />
+            <EmptyState message='No valid rows found. Expected columns: item, category, value, tooltip — a field literally named "category" is required.' />
         );
     } else {
         showLegend = true;

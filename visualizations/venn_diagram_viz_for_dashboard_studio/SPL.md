@@ -2,30 +2,28 @@
 
 ## Data contract
 
-Long format: one row per `(item, category)` — mostly positional, so columns
-can be called whatever you like, as long as the *order* and *count* match
-one of these shapes:
+Long format: one row per `(item, category)`. `category` (and `value`/
+`tooltip`) are read by field name, case-insensitive, wherever they sit in
+the row; `item` is whatever column is left over. So the columns needed are:
 
-| columns | shape                                                    |
-|---------|-----------------------------------------------------------|
-| 4       | `item, category, value, tooltip`                          |
-| 5       | `item, category1, category2, value, tooltip`               |
-| 6       | `item, category1, category2, category3, value, tooltip`    |
+```
+item, category, value, tooltip
+```
 
-**Exception:** if a column is literally named `value` or `tooltip`
-(case-insensitive), it's used by name instead of position — it can be
-anywhere in the row, in any order, and either or both may be named. Any
-`value`/`tooltip` that ISN'T named still falls back to reading positionally
-(last, or second-to-last, of whatever's left) exactly as above. `item` and
-`category` are always positional (first column, and everything between
-item and whichever of value/tooltip is positional) — only `value`/
-`tooltip` get name-based detection. So `host, tooltip, category, value` and
-`value, category, host, tooltip` both work identically to the 4-column
-shape above, as long as one field is named `tooltip` and one is named
-`value`.
+— in any order, under any names for `item`, as long as one field is
+literally called `category`, one `value`, and one `tooltip`.
+
+**A field NOT literally named `value` or `tooltip` still falls back to
+reading positionally** (the last, or second-to-last, remaining column after
+`item`/`category`/whichever of value-or-tooltip IS named are pulled out) —
+so `host, category, count, note` still works with `count` read as value and
+`note` as tooltip purely by position. **`category` has no positional
+fallback** — a `category` field is required, by that exact name, or the row
+is dropped.
 
 - **item** — entity id (one dot per item)
-- **category** (1-3 of them) — the set(s) this row's item belongs to. The
+- **category** — the ONE set this row's item belongs to (single value, not
+  a list — see below for how an item in multiple sets is represented). The
   viz discovers the full list of distinct category names across all rows
   (alphabetically, for a stable A/B/C ↔ color mapping across search
   refreshes). True proportional Venn geometry only works for 2-3 sets, so
@@ -54,10 +52,6 @@ When an item's rows are combined into a single dot:
   sum — hovering host1 above shows both "timeouts (20): Lots of timeouts"
   and "restarts (4): A few restarts", plus a `Total: 24` line
 
-A single row that already lists 2-3 categories at once (the 5- or
-6-column shapes) works the same way — its one tooltip line is labeled with
-all the categories that row covers, since the tooltip text was presumably
-written for that combination already.
 
 ## Sample data (no real indexes needed)
 
@@ -116,9 +110,9 @@ index=auth sourcetype=linux_secure action=failure
 | table host category value tooltip
 ```
 
-Swap the three sub-searches for your real conditions. Column order/count
-is what matters — `host`, `category`, `value`, `tooltip` above could just
-as easily be named anything.
+Swap the three sub-searches for your real conditions. `category`, `value`,
+and `tooltip` must keep those exact field names (case-insensitive) — only
+`host` (the item column) can be called anything you like.
 
 ## Drilldown tokens
 
@@ -128,7 +122,24 @@ of field reference: `name`, `value`, and `row.<fieldname>.value`** — nothing
 else is selectable/bindable, no matter what a custom visualization's own
 click payload actually contains. So everything other than the item's id and
 its numeric value rides under the `row.<name>.value` form, including things
-that aren't literally raw SPL columns:
+that aren't literally raw SPL columns.
+
+**Three click targets, same in both dots mode and "Show counts" mode:**
+1. **A circle's background** (empty space inside it, on neither a dot nor a
+   region's number) — resolves to the SPECIFIC exact region under the
+   cursor (an invisible per-region hit-area sits beneath the dots/numbers
+   for exactly this). In "Show counts" mode this is the same target the
+   visible number sits on; in dots mode it's the same background you'd hit
+   between/around dots.
+2. **A circle's true edge / anywhere its hit-area approximation doesn't
+   reach** — falls through to the whole-category handler, since the
+   per-region hit-areas are circular approximations of what are often
+   crescent/lens-shaped regions and don't perfectly tile the circle's full
+   area. This is "click the border" in practice, without a literal
+   dedicated border element.
+3. **A dot** (dots mode only) — sits on top of everything else for
+   whatever pixels it covers, so it always wins over the region hit-area
+   beneath it.
 
 - **A dot** (an item) — `name` (the item id), `value` (its summed value),
   `row.tooltip.value` (its combined tooltip text), `row.color.value` (its
@@ -141,18 +152,20 @@ that aren't literally raw SPL columns:
   same key. If an item spans multiple rows, `row.<field>.value` reflects the
   last row that had a non-blank value for that field (a row that left a
   column blank doesn't erase an earlier row's value for it).
-- **A parent circle** (a whole category) — `name` (the category name),
+- **A parent circle** (a whole category — its edge, or any background pixel
+  not covered by a region hit-area) — `name` (the category name),
   `row.color.value`, `row.categoryList.value`, and `row.splFilter.value`
   (see below).
 - **A legend item** — same as a parent circle: `name`, `row.color.value`,
   `row.categoryList.value`, `row.splFilter.value`. Clicking a legend item
   still also toggles that category on/off as before — both happen on the
   same click.
-- **A region's count** (only in "Show counts" mode, see below) — `name`
-  (the category name(s) that region belongs to, e.g. `Category A +
-  Category B`), `value` (the item count shown), `row.totalValue.value`
-  (the sum of those items' own values), `row.color.value` (the region's
-  blended color), `row.categoryList.value`, and `row.splFilter.value`.
+- **A region** (its number in "Show counts" mode, or its background area in
+  dots mode) — `name` (the category name(s) that region belongs to, e.g.
+  `Category A + Category B`), `value` (the item count shown), 
+  `row.totalValue.value` (the sum of those items' own values),
+  `row.color.value` (the region's blended color), `row.categoryList.value`,
+  and `row.splFilter.value`.
 
 ### `row.categoryList.value` — for use with SPL's `IN()`
 
@@ -178,27 +191,34 @@ actually wanted to report on.
 ### `row.splFilter.value` — the exact-region opposite of `row.categoryList.value`
 
 Where `row.categoryList.value` is a union, `row.splFilter.value` is the AND
-of the *exact* region clicked, for filtering a downstream search that has
-one boolean field per category (named after the category's own display
-name, valued `1`/`0` — see `in_A`/`in_B`/`in_C` in the sample data above).
-Field names are double-quoted for SPL's search-bar syntax (a field name
-containing spaces needs quoting there); this token is meant for a bare
-`| search ...` term, not a `where` clause — `where` treats a double-quoted
-token as a string literal, not a field reference, and would silently break.
+of the *exact* region clicked, targeting the same `category` field the data
+contract fixes the column name to — so there's no field-name-quoting
+question here, only the *value* ever needs quoting (ordinary SPL string
+literal syntax, same escaping as `row.categoryList.value` above).
+
+**This only matches correctly against a search where `category` is
+multivalued per item** — e.g. right after `| stats values(category) as
+category by item` — since Splunk matches each term of a multivalue field
+independently: `category="A" AND category="B"` matches an item whose
+category values include BOTH. Run directly against the viz's own
+one-row-per-item-per-category table, this filter would never match
+anything, since a single row only ever has one category value.
 
 ```spl
+| stats values(category) as category by item
 | search $clicked_filter$
 ```
 
 - **A dot or a region's count** — both represent one specific,
   mutually-exclusive Venn region, so the expression includes `NOT
-  "<category>"=1` for every category *not* in that region. Clicking the
-  A∩B sliver gives `"Category A"=1 AND "Category B"=1 AND NOT "Category
-  C"=1` — it deliberately does NOT also match A∩B∩C center items, unlike
-  `row.categoryList.value`'s union behavior above.
+  category="<category>"` for every category *not* in that region. Clicking
+  the A∩B sliver gives `category="Category A" AND category="Category B"
+  AND NOT category="Category C"` — it deliberately does NOT also match
+  A∩B∩C center items, unlike `row.categoryList.value`'s union behavior
+  above.
 - **A parent circle or legend item** — represents the WHOLE circle (that
   category plus every overlap it participates in), so no `NOT` clauses are
-  added: clicking category A's circle gives just `"Category A"=1`.
+  added: clicking category A's circle gives just `category="Category A"`.
 
 ## "Show counts instead of dots" option
 
@@ -211,6 +231,9 @@ circle(s) and shows a tooltip with the exact count and total value — this
 is deliberately a tooltip rather than literally magnifying part of the
 diagram, so the tiny center region (all 3 categories overlapping) stays
 just as readable as any other without a different interaction to learn.
+The same per-region hit-area exists (invisibly) in dots mode too — hovering
+background space inside a circle, away from any dot, gives this identical
+region tooltip/click behavior even with the numbers off.
 
 In the dashboard's "On Click" editor, reference these with `key:
 "row.tooltip.value"` etc. (not a bare `tooltip`) when configuring which

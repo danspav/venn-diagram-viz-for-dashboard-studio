@@ -34,16 +34,22 @@ sets. This is a narrower, specialized viz (like a correlation/overlap tool),
 not a general-purpose chart type — don't try to generalize past 3 sets.
 
 ## SPL shape this needs to consume
-Long format, mostly positional (column order/count matter, not names):
-`item, category, value, tooltip` (4 columns), or with 2-3 category columns
-instead of 1 (5 or 6 columns total). Exception: a column literally named
-`value` or `tooltip` (case-insensitive) is used by name regardless of
-position — either or both may be named, anywhere in the row. The viz
-discovers the distinct category names across all rows itself
-(alphabetically, for stable color/region assignment across search
-refreshes). More than 3 is a soft limit, not an error: only the first 3
-(alphabetically) are shown, items exclusively in an excluded category are
-dropped, and a warning banner at the bottom names what got left out.
+Long format: `item, category, value, tooltip`. `category` is a required,
+literally-named field (case-insensitive), single value per row — no
+positional detection and no multi-category-per-row shape (an item in
+multiple sets is multiple rows, one per category; see below). `value`/
+`tooltip` are read by name if a field is literally called that, otherwise
+fall back positionally from whatever's left after item/category; `item` is
+whatever column remains. Fixing `category` to one canonical field name
+(rather than "whatever the search author called it, positionally
+detected") is what lets drilldown generate plain `category="X"` SPL filter
+terms — see `row.splFilter.value` in SPL.md — without having to handle
+arbitrary/spaced field names. The viz discovers the distinct category names
+across all rows itself (alphabetically, for stable color/region assignment
+across search refreshes). More than 3 is a soft limit, not an error: only
+the first 3 (alphabetically) are shown, items exclusively in an excluded
+category are dropped, and a warning banner at the bottom names what got
+left out.
 
 ```spl
 index=auth sourcetype=linux_secure action=failure
