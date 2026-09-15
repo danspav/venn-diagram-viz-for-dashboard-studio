@@ -6,6 +6,7 @@ import { execSync } from 'node:child_process';
 import {
     copyFileSync,
     existsSync,
+    cpSync,
     mkdirSync,
     readFileSync,
     readdirSync,
@@ -269,6 +270,17 @@ function stageAppConf(projectRoot, buildNumber) {
     return appInfo;
 }
 
+
+function stageStaticFiles(projectRoot, stageAppDir) {
+    const appSourceDir = join(projectRoot, 'package', 'app');
+    if (!existsSync(appSourceDir)) return;
+    console.log(colors.info('Copying static app files (dashboards, nav, etc.)...'));
+    cpSync(appSourceDir, stageAppDir, {
+        recursive: true,
+        filter: (src) => !src.endsWith('app.conf'), // app.conf is handled separately (templated)
+    });
+}
+
 function stageConfFiles(stageAppDir, vizs) {
     console.log(colors.info('Generating visualizations.conf...'));
     const defaultDir = join(stageAppDir, 'default');
@@ -363,7 +375,8 @@ async function main({ cwd }) {
     console.log(colors.info('Creating app structure...'));
     rmSync(stageAppDir, { recursive: true, force: true });
     mkdirSync(stageAppDir, { recursive: true });
-
+    stageStaticFiles(projectRoot, stageAppDir);
+    
     try {
         stageAppConf(projectRoot, buildNumber);
     } catch (err) {
@@ -380,6 +393,8 @@ async function main({ cwd }) {
 
     stageConfFiles(stageAppDir, vizs);
 
+    
+
     console.log(colors.info('Generating app manifest...'));
     writeFileSync(join(stageAppDir, 'app.manifest'), JSON.stringify(generateAppManifest(appInfoParsed), null, 2));
 
@@ -390,6 +405,9 @@ async function main({ cwd }) {
     console.log(colors.dim(`Output: ${outputPath}`));
     console.log(colors.dim(`Staging directory: ${stageAppDir}`));
 }
+
+
+
 
 main({ cwd: process.cwd() }).catch((err) => {
     console.error(err);

@@ -1,0 +1,252 @@
+<dashboard version="2" theme="dark">
+  <label>Venn Diagram Viz - Examples &amp; Guide</label>
+  <definition><![CDATA[
+{
+    "title": "Venn Diagram",
+    "description": "",
+    "inputs": {
+        "input_global_trp": {
+            "options": {
+                "defaultValue": "-24h@h,now",
+                "token": "global_time"
+            },
+            "title": "Global Time Range",
+            "type": "input.timerange"
+        }
+    },
+    "defaults": {
+        "dataSources": {
+            "ds.search": {
+                "options": {
+                    "queryParameters": {
+                        "earliest": "$global_time.earliest$",
+                        "latest": "$global_time.latest$"
+                    }
+                }
+            },
+            "ds.spl2": {
+                "options": {
+                    "queryParameters": {
+                        "earliest": "$global_time.earliest$",
+                        "latest": "$global_time.latest$"
+                    }
+                }
+            }
+        },
+        "visualizations": {
+            "global": {
+                "showProgressBar": true
+            }
+        }
+    },
+    "visualizations": {
+        "viz_E0o5fD4v": {
+            "options": {
+                "markdown": "$splFilter$"
+            },
+            "type": "splunk.markdown"
+        },
+        "viz_LCU1Avep": {
+            "dataSources": {
+                "primary": "ds_XO1ddpJ5"
+            },
+            "eventHandlers": [
+                {
+                    "options": {
+                        "tokens": [
+                            {
+                                "key": "row.splFilter.value",
+                                "token": "splFilter2"
+                            }
+                        ]
+                    },
+                    "type": "drilldown.setToken"
+                }
+            ],
+            "options": {
+                "animateItems": true,
+                "backgroundColor": "transparent",
+                "categoryColorC": "#dc4e41",
+                "fillCircles": true,
+                "legendPosition": "left",
+                "showCounts": true
+            },
+            "type": "venn_diagram_viz_for_dashboard_studio.venn_diagram_viz_for_dashboard_studio"
+        },
+        "viz_W68rYFtY": {
+            "containerOptions": {
+                "visibility": {}
+            },
+            "dataSources": {
+                "primary": "ds_HiNswp3T"
+            },
+            "options": {
+                "columnFormat": {
+                    "#": {
+                        "width": 60
+                    },
+                    "category": {
+                        "width": 123
+                    },
+                    "host": {
+                        "width": 102
+                    },
+                    "tooltip": {
+                        "width": 245
+                    },
+                    "value": {
+                        "width": 77
+                    }
+                },
+                "showRowNumbers": true
+            },
+            "type": "splunk.table"
+        },
+        "viz_Zep70T3H": {
+            "dataSources": {
+                "primary": "ds_NPKp0K3D"
+            },
+            "eventHandlers": [
+                {
+                    "options": {
+                        "tokens": [
+                            {
+                                "key": "row.splFilter.value",
+                                "token": "splFilter"
+                            }
+                        ]
+                    },
+                    "type": "drilldown.setToken"
+                }
+            ],
+            "options": {
+                "animateItems": true,
+                "backgroundColor": "transparent",
+                "fillCircles": true,
+                "legendPosition": "left"
+            },
+            "type": "venn_diagram_viz_for_dashboard_studio.venn_diagram_viz_for_dashboard_studio"
+        },
+        "viz_p9DjjMEn": {
+            "containerOptions": {
+                "visibility": {}
+            },
+            "dataSources": {
+                "primary": "ds_6PQ9e8Ia"
+            },
+            "type": "splunk.table"
+        }
+    },
+    "dataSources": {
+        "ds_6PQ9e8Ia": {
+            "name": "Table",
+            "options": {
+                "extend": "ds_NPKp0K3D",
+                "query": "|  eventstats values(category) as category by host\n|  search $splFilter$"
+            },
+            "type": "ds.chain"
+        },
+        "ds_HiNswp3T": {
+            "name": "Table copy 1",
+            "options": {
+                "extend": "ds_XO1ddpJ5",
+                "query": "|  eventstats values(category) as category by host\n|  search $splFilter2$"
+            },
+            "type": "ds.chain"
+        },
+        "ds_NPKp0K3D": {
+            "name": "Search_1",
+            "options": {
+                "query": "| makeresults count=116\r\n| streamstats count as row_num\r\n| eval host=\"host-\" . row_num\r\n| eval in_A=if(row_num<=34 OR (row_num>=84 AND row_num<=93) OR (row_num>=94 AND row_num<=106) OR row_num>=113, 1, 0)\r\n| eval in_B=if((row_num>=35 AND row_num<=55) OR (row_num>=84 AND row_num<=93) OR (row_num>=107 AND row_num<=112) OR row_num>=113, 1, 0)\r\n| eval in_C=if((row_num>=56 AND row_num<=83) OR (row_num>=94 AND row_num<=106) OR (row_num>=107 AND row_num<=112) OR row_num>=113, 1, 0)\r\n| eval category=mvappend(if(in_A=1,\"Apples\",null()), if(in_B=1,\"Bananas\",null()), if(in_C=1,\"Cantalope\",null()))\r\n| mvexpand category\r\n| eval value=round(random()/2147483647*17)+3\r\n| eval tooltip=\"synthetic test row\"\r\n| table host category value tooltip\r\n"
+            },
+            "type": "ds.search"
+        },
+        "ds_XO1ddpJ5": {
+            "name": "second",
+            "options": {
+                "query": "| makeresults count=7\r\n| streamstats count as row_num\r\n| eval host=\"prodweb00\" . row_num\r\n| eval in_2xx=if(random() % 100 < 65, 1, 0)\r\n| eval in_4xx=if(random() % 100 < 55, 1, 0)\r\n| eval in_5xx=if(random() % 100 < 40, 1, 0)\r\n| eval in_2xx=if(in_2xx=0 AND in_4xx=0 AND in_5xx=0, 1, in_2xx)\r\n| eval category=mvappend(\r\n    if(in_2xx=1, \"2xx Success\", null()),\r\n    if(in_4xx=1, \"4xx Client Error\", null()),\r\n    if(in_5xx=1, \"5xx Server Error\", null())\r\n  )\r\n| mvexpand category\r\n| eval value=case(\r\n    category=\"2xx Success\", round(random()/2147483647*400)+50,\r\n    category=\"4xx Client Error\", round(random()/2147483647*150)+5,\r\n    category=\"5xx Server Error\", round(random()/2147483647*60)+1\r\n  )\r\n| eval tooltip=value . \" requests returned \" . category\r\n| table host category value tooltip"
+            },
+            "type": "ds.search"
+        }
+    },
+    "layout": {
+        "globalInputs": [
+            "input_global_trp"
+        ],
+        "layoutDefinitions": {
+            "layout_1": {
+                "options": {
+                    "backgroundColor": "#504949",
+                    "display": "auto",
+                    "height": 960,
+                    "width": 1440
+                },
+                "structure": [
+                    {
+                        "item": "viz_Zep70T3H",
+                        "position": {
+                            "h": 450,
+                            "w": 670,
+                            "x": 20,
+                            "y": 30
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_LCU1Avep",
+                        "position": {
+                            "h": 450,
+                            "w": 670,
+                            "x": 700,
+                            "y": 30
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_E0o5fD4v",
+                        "position": {
+                            "h": 50,
+                            "w": 790,
+                            "x": 390,
+                            "y": 520
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_p9DjjMEn",
+                        "position": {
+                            "h": 300,
+                            "w": 630,
+                            "x": 60,
+                            "y": 570
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_W68rYFtY",
+                        "position": {
+                            "h": 300,
+                            "w": 630,
+                            "x": 740,
+                            "y": 570
+                        },
+                        "type": "block"
+                    }
+                ],
+                "type": "absolute"
+            }
+        },
+        "options": {},
+        "tabs": {
+            "items": [
+                {
+                    "label": "New tab",
+                    "layoutId": "layout_1"
+                }
+            ]
+        }
+    }
+}
+
+  ]]></definition>
+</dashboard>

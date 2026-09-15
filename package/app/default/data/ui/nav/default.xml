@@ -1,0 +1,6 @@
+<nav search_view="search" color="transparent" >
+    <view icon="layoutoverview" default="true" name="examples" />
+    <view name="settings" icon="cog" />
+    <view name="other_apps" icon="chartpanels" />
+    
+</nav>
