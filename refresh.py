@@ -1,13 +1,17 @@
 import sys
+import socket
 import splunklib.client as client
 import getpass
 
 splunkServer = "localhost"
-#splunkAdmin = "daniel"
-splunkAdmin = "admin"
-#splunkPassword = "c3pcdJQtQACEVb7M73RMRGabH"
-#splunkPassword = "iPhone123!"
-splunkPassword = "password"
+
+if socket.gethostname().lower() == "cannonst":
+    splunkAdmin = "daniel"
+    splunkPassword = "iPhone123!"
+else:
+    splunkAdmin = "admin"
+    splunkPassword = "password"
+
 splunkDestApp = "venn_diagram_viz_for_dashboard_studio"
 
 if splunkDestApp:

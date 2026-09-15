@@ -448,26 +448,39 @@ function buildDotDrilldownPayload(d, names) {
     return payload;
 }
 
-// venn.js sets format: a single-set entry's `size` is that set's total
-// membership (including hosts also in other sets); a multi-set entry's
-// `size` is that exact region's exclusive count. Mixing cumulative
-// single-set totals with exclusive combo counts is what the prototype
-// validated against — see CLAUDE.md's containment verification notes.
+// venn.js's own docs (its README's very first example) spell out the
+// "sets" input format: `{sets: ['A','B'], size: 2}` means the ORDINARY
+// set-theory A∩B intersection size — everyone in BOTH A and B, regardless
+// of whatever else they're also in (so A∩B∩C members count toward A∩B
+// too, same as they count toward plain A and plain B). BUG, now fixed:
+// this used to pass the EXCLUSIVE-only region count for multi-set entries
+// instead (i.e., "in A and B but NOT C"), silently understating every
+// pairwise/triple overlap whenever there's a nonzero triple-overlap group,
+// since A∩B∩C members were being left out of what was reported as "A∩B"
+// entirely. venn.js's layout solver only overlaps two circles as much as
+// the sizes it's given call for, so an understated (sometimes
+// dramatically — a small exclusive count next to a real cumulative total
+// double or more that) intersection size could result in little or even
+// NO rendered overlap between two circles that should genuinely overlap —
+// reported directly: two circles with a real pairwise-overlap count
+// between them rendering with no visible overlap at all, the shared count
+// left stranded wherever the (correctly built, but built for a
+// geometrically wrong layout) region-count label placement's best-effort
+// fallback happened to land it.
 function buildVennSets(hosts, names) {
-    const regionCounts = {};
-    hosts.forEach((h) => {
-        const key = regionKeyOf(h.memberships);
-        regionCounts[key] = (regionCounts[key] || 0) + 1;
-    });
-
     const totalFor = (key) => hosts.filter((h) => h.memberships.includes(key)).length;
+    // "At least all of these keys" — the true set-theory intersection,
+    // not "exactly these keys and no others" (regionKeyOf's exclusive
+    // grouping, still used elsewhere for the actual per-region dot/count
+    // grouping, where exclusivity IS what's wanted).
+    const totalForCombo = (keys) => hosts.filter((h) => keys.every((k) => h.memberships.includes(k))).length;
 
     const singleSets = REGION_KEYS.map((k) => ({ sets: [names[k]], size: totalFor(k) })).filter(
         (s) => s.size > 0
     );
     const multiCombos = [...PAIR_COMBOS, TRIPLE_COMBO];
     const multiSets = multiCombos
-        .map((keys) => ({ sets: keys.map((k) => names[k]), size: regionCounts[keys.join(',')] || 0 }))
+        .map((keys) => ({ sets: keys.map((k) => names[k]), size: totalForCombo(keys) }))
         .filter((s) => s.size > 0);
 
     return [...singleSets, ...multiSets];
@@ -553,6 +566,63 @@ function classifyWithMargin(circles, activeKeys, x, y) {
         if (m < margin) margin = m;
     });
     return { key: included.sort().join(','), margin };
+}
+
+// How well (x,y) satisfies membership in a SPECIFIC target region — unlike
+// classifyWithMargin above (which reports whichever region the point
+// actually falls into), this checks memberKeys against EVERY circle in
+// activeKeys: positive margin (inside radius) required for a member
+// circle, positive margin (outside radius) required for a non-member one.
+// The overall margin is the worst (smallest/most-negative) of those, so
+// maximizing it finds the point that best satisfies ALL of them at once —
+// including staying OUT of circles the region doesn't belong to, which a
+// margin computed from memberKeys alone (an earlier version of the
+// near-miss search below did exactly this) would never penalize, letting
+// a "best" point for e.g. region A∩C land deep inside an unrelated B
+// circle sitting between them with nothing counting against it.
+function regionMargin(circles, activeKeys, memberKeys, x, y) {
+    let margin = Infinity;
+    activeKeys.forEach((key) => {
+        const c = circles[key];
+        const dist = Math.sqrt((x - c.x) ** 2 + (y - c.y) ** 2);
+        const m = memberKeys.includes(key) ? c.radius - dist : dist - c.radius;
+        if (m < margin) margin = m;
+    });
+    return margin;
+}
+
+// Local pattern/compass search: starting from `start`, repeatedly tries
+// steps in several directions and moves to whichever neighbor most
+// improves `marginAt`, halving the step size whenever no direction
+// improves on the current point, until the step is negligibly small.
+// Deterministic and scale-independent — unlike random sampling (used to
+// find `start` in the first place), whose achievable precision is capped
+// by how many samples happen to land near the true optimum, this converges
+// to the actual best point regardless of panel size, which is what makes
+// a fix here work reliably "no matter how the diagram is resized" rather
+// than only at whatever size happened to get lucky samples. Cheap (a
+// three-circle margin check per step) even at a few hundred steps.
+function refineByPatternSearch(marginAt, start, initialStep) {
+    let best = { x: start.x, y: start.y };
+    let bestMargin = marginAt(best.x, best.y);
+    let step = initialStep;
+    const DIRECTIONS = 12;
+    while (step > 0.25) {
+        let improved = false;
+        for (let d = 0; d < DIRECTIONS; d++) {
+            const angle = (2 * Math.PI * d) / DIRECTIONS;
+            const x = best.x + step * Math.cos(angle);
+            const y = best.y + step * Math.sin(angle);
+            const m = marginAt(x, y);
+            if (m > bestMargin) {
+                bestMargin = m;
+                best = { x, y };
+                improved = true;
+            }
+        }
+        if (!improved) step /= 2;
+    }
+    return { point: best, margin: bestMargin };
 }
 
 // Pure geometry pipeline (no DOM) — venn.js's own VennDiagram() chart never
@@ -944,6 +1014,16 @@ function renderVenn(
     // the edge of whichever two circles overlap most, which reads visually
     // as "as close to correct as this layout allows" instead of landing
     // somewhere arbitrary.
+    // BUG FIXED HERE: this used to score candidate points ONLY against
+    // memberKeys (must be inside those), never checking whether the point
+    // ALSO landed inside some OTHER, non-member circle — so for e.g.
+    // region A∩C with a big B circle sitting between/over them, the "best"
+    // point could be deep inside B too, with nothing in the margin
+    // function penalizing that at all. Visible directly as a region's
+    // number rendering inside the WRONG circle (reported: "it shows in
+    // yellow" for a region yellow wasn't even supposed to be part of).
+    // regionMargin (module-level, shared with the refinement pass below)
+    // checks every circle in activeKeys, not just the member ones.
     const NEAR_MISS_SAMPLES = 8000;
     hostsByRegion.forEach((_regionHosts, key) => {
         if (bestPoint[key]) return;
@@ -964,13 +1044,7 @@ function renderVenn(
         for (let i = 0; i < NEAR_MISS_SAMPLES; i++) {
             const x = minX + Math.random() * (maxX - minX);
             const y = minY + Math.random() * (maxY - minY);
-            let margin = Infinity;
-            memberKeys.forEach((k) => {
-                const c = circles[k];
-                const dist = Math.sqrt((x - c.x) ** 2 + (y - c.y) ** 2);
-                const m = c.radius - dist;
-                if (m < margin) margin = m;
-            });
+            const margin = regionMargin(circles, activeKeys, memberKeys, x, y);
             if (margin > best) {
                 best = margin;
                 bestPt = { x, y };
@@ -978,6 +1052,58 @@ function renderVenn(
         }
         bestMargin[key] = best;
         bestPoint[key] = bestPt;
+    });
+
+    // Final polish, for every region regardless of which tier above found
+    // its point: local pattern search (refineByPatternSearch) squeezes out
+    // precision no amount of random sampling reliably achieves — this is
+    // what makes the fix hold "no matter how the diagram is resized"
+    // rather than only at whatever panel size happened to get lucky random
+    // samples near the true optimum. Run from SEVERAL starting seeds, not
+    // just whichever single point the tiered sampling above happened to
+    // land on — regionMargin's surface (the min of several circles'
+    // signed distances) isn't always smooth/single-peaked, so a pattern
+    // search from one seed can converge to a real but non-global local
+    // optimum. Keeping the best result across seeds is cheap (each is only
+    // a few hundred 3-circle margin checks) and catches that case, which a
+    // single-seed search verifiably didn't for a "these circles truly do
+    // overlap, but the search settled short of the actual overlap lens"
+    // case found while testing this fix.
+    hostsByRegion.forEach((_regionHosts, key) => {
+        if (!bestPoint[key]) return;
+        const memberKeys = key.split(',').filter(Boolean);
+        const marginAt = (x, y) => regionMargin(circles, activeKeys, memberKeys, x, y);
+        const smallestRadius = Math.min(...activeKeys.map((k) => circles[k].radius));
+        const initialStep = Math.max(5, Math.min(40, smallestRadius * 0.5));
+
+        const seeds = [bestPoint[key]];
+        // The centroid of every member circle's own center — a natural
+        // "middle of the overlap" guess independent of whatever the random
+        // sampling tiers happened to find.
+        seeds.push({
+            x: d3.mean(memberKeys, (k) => circles[k].x),
+            y: d3.mean(memberKeys, (k) => circles[k].y),
+        });
+        // The midpoint between each pair of member circles — for a region
+        // whose true overlap lens sits between two particular circles
+        // (the common case once a 3rd circle covers most of the rest of
+        // it), this lands much closer to that lens than an average of all
+        // member centers would.
+        for (let i = 0; i < memberKeys.length; i++) {
+            for (let j = i + 1; j < memberKeys.length; j++) {
+                const ci = circles[memberKeys[i]];
+                const cj = circles[memberKeys[j]];
+                seeds.push({ x: (ci.x + cj.x) / 2, y: (ci.y + cj.y) / 2 });
+            }
+        }
+
+        let best = null;
+        seeds.forEach((seed) => {
+            const refined = refineByPatternSearch(marginAt, seed, initialStep);
+            if (!best || refined.margin > best.margin) best = refined;
+        });
+        bestPoint[key] = best.point;
+        bestMargin[key] = best.margin;
     });
 
     const regionCentroid = bestPoint;
@@ -1355,6 +1481,18 @@ function renderVenn(
     const countGroupSel = regionGroups;
     const countRegions = regions;
 
+    // Populated below (showCounts only) with one entry per visible number,
+    // then nudged apart in a second pass — a small region's exclusive
+    // slice and its slim overlap with a close neighbor can have Monte
+    // Carlo centroids near enough that the two numbers print on top of
+    // each other (seen directly: a "1" and a "2" overlapping). Only the
+    // TEXT position gets nudged, never the hit-area circle (still at the
+    // true centroid always) — so click/hover targeting for a region never
+    // shifts just because its number had to move for legibility, the same
+    // trade the outer category labels above already make relative to
+    // their own circles.
+    const countEntries = [];
+
     regionGroups.each(function (r) {
         const g = d3.select(this);
         const hitRadius = Math.max(COUNT_HIT_RADIUS_MIN, Math.sqrt(r.area / Math.PI));
@@ -1371,14 +1509,110 @@ function renderVenn(
         // stamped over them too.
         if (showCounts) {
             const fontSize = Math.max(COUNT_FONT_MIN, Math.min(COUNT_FONT_MAX, hitRadius * 0.9));
-            g.append('text')
+            const text = g
+                .append('text')
                 .attr('class', 'region-count')
                 .attr('x', r.centroid.x)
                 .attr('y', r.centroid.y)
                 .style('font-size', `${fontSize}px`)
                 .text(r.count);
+            countEntries.push({
+                r,
+                text,
+                x: r.centroid.x,
+                y: r.centroid.y,
+                // Measured off the actual rendered glyphs, not estimated —
+                // same principle the outer labels' wrapLabel/truncateLabel
+                // already follow.
+                halfWidth: text.node().getComputedTextLength() / 2,
+                halfHeight: fontSize / 2,
+            });
         }
     });
+
+    // Same relaxation approach as the outer labels' collision-avoidance
+    // above (LABEL_COLLISION_PADDING/labelBBox): push each overlapping
+    // pair apart along whichever axis (x or y) has the smaller overlap,
+    // over a few passes so resolving one pair can't silently re-break
+    // another. With at most 7 regions this converges almost immediately.
+    if (showCounts) {
+        const COUNT_COLLISION_PADDING = 3;
+        // Pulls one label back inside the SPECIFIC region it represents
+        // (same containment math dots already use — clampOnce, run to
+        // convergence like clampToRegion elsewhere) — treats the label as
+        // a point with radius = the circle that fully contains its
+        // rectangular box (the diagonal, not max(halfWidth,halfHeight),
+        // which wouldn't actually contain the box's corners), so its
+        // EDGES stay contained, not just its center.
+        const clampToOwnRegion = (entry) => {
+            const node = {
+                memberships: entry.r.memberKeys,
+                r: Math.sqrt(entry.halfWidth ** 2 + entry.halfHeight ** 2),
+            };
+            let p = { x: entry.x, y: entry.y };
+            for (let k = 0; k < 8; k++) p = clampOnce(circles, activeKeys, p, node);
+            entry.x = p.x;
+            entry.y = p.y;
+        };
+        for (let pass = 0; pass < 12; pass++) {
+            let moved = false;
+            for (let i = 0; i < countEntries.length; i++) {
+                for (let j = i + 1; j < countEntries.length; j++) {
+                    const a = countEntries[i];
+                    const b = countEntries[j];
+                    const overlapX =
+                        Math.min(a.x + a.halfWidth, b.x + b.halfWidth) -
+                        Math.max(a.x - a.halfWidth, b.x - b.halfWidth) +
+                        COUNT_COLLISION_PADDING;
+                    const overlapY =
+                        Math.min(a.y + a.halfHeight, b.y + b.halfHeight) -
+                        Math.max(a.y - a.halfHeight, b.y - b.halfHeight) +
+                        COUNT_COLLISION_PADDING;
+                    if (overlapX <= 0 || overlapY <= 0) continue;
+                    moved = true;
+                    if (overlapX < overlapY) {
+                        const push = overlapX / 2;
+                        const direction = a.x < b.x ? -1 : 1;
+                        a.x += direction * push;
+                        b.x -= direction * push;
+                    } else {
+                        const push = overlapY / 2;
+                        const direction = a.y < b.y ? -1 : 1;
+                        a.y += direction * push;
+                        b.y -= direction * push;
+                    }
+                    // Re-contain BOTH labels right after touching them,
+                    // not once at the end of the whole pass — a label
+                    // involved in more than one collision this pass (the
+                    // norm in a busy 3-way-overlap cluster: the triple
+                    // region collides with EACH of the 3 pairwise regions
+                    // around it) would otherwise accumulate multiple
+                    // pushes uncorrected before ever being pulled back,
+                    // often overshooting past the small valid area
+                    // entirely — reported directly: a 3-way overlap's "1"
+                    // ending up only inside ONE parent circle, nowhere
+                    // near the true triple-overlap center.
+                    clampToOwnRegion(a);
+                    clampToOwnRegion(b);
+                }
+            }
+            if (!moved) break;
+        }
+        countEntries.forEach((entry) => {
+            entry.text.attr('x', entry.x).attr('y', entry.y);
+            // Recorded on the region itself (regions === countRegions, read
+            // again below by fillScale's content-bounds measurement) so a
+            // pushed-apart number that ends up further from its hit-area
+            // than COUNT_HIT_RADIUS_MIN doesn't get clipped once the whole
+            // diagram scales up to fill available space.
+            entry.r.labelBox = {
+                x0: entry.x - entry.halfWidth,
+                x1: entry.x + entry.halfWidth,
+                y0: entry.y - entry.halfHeight,
+                y1: entry.y + entry.halfHeight,
+            };
+        });
+    }
 
     function regionDisplayName(r) {
         return r.memberKeys.map((k) => names[k]).join(' + ');
@@ -1711,6 +1945,11 @@ function renderVenn(
                 r.centroid.y - hitRadius,
                 r.centroid.y + hitRadius
             );
+            // The number's own final (post-collision-avoidance) box — set
+            // on the region above whenever its label had to be nudged away
+            // from the hit-area's true centroid to avoid overlapping a
+            // neighboring region's number.
+            if (r.labelBox) extendBounds(r.labelBox.x0, r.labelBox.x1, r.labelBox.y0, r.labelBox.y1);
         });
     }
 

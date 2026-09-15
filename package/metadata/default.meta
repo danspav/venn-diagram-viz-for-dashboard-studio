@@ -1,5 +1,5 @@
 []
-access = read : [ * ], write : [ admin, power ]
+access = read : [ user,* ], write : [ sc_admin, admin, power ]
 
 [visualizations/_vizName_]
 export = system
