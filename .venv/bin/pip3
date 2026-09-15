@@ -1,4 +1,4 @@
-#!/splunk/git/venn-diagram-viz-for-dashboard-studio/.venv/bin/python3
+#!/opt/git/venn-diagram-viz-for-dashboard-studio/.venv/bin/python3
 # -*- coding: utf-8 -*-
 import re
 import sys

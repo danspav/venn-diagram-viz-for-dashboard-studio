@@ -379,6 +379,33 @@ function buildCategoryListToken(keys, names) {
     return keys.map((k) => `"${String(names[k]).replace(/"/g, '\\"')}"`).join(', ');
 }
 
+// A base-search filter expression for "items in this exact region" — the
+// opposite intent from row.categoryList.value's IN() union above. Assumes
+// the downstream search has a boolean field per category (as in the
+// CLAUDE.md sample data's in_A/in_B/in_C pattern) named after that
+// category's own display name. Field names are double-quoted (Splunk's
+// search-bar syntax for a field name containing spaces) rather than
+// single-quoted like a `where`-command identifier would need — this token
+// is meant to be dropped into a bare `| search ...` term, not a `where`
+// clause, where double quotes would instead be read as a string literal.
+//
+// `exact: true` (a dot, or one region-count's number — both represent a
+// single mutually-exclusive Venn region, matching regionKeyOf's exact/
+// sorted membership grouping) ANDs in every OTHER present category as
+// `NOT "<category>"=1`, so e.g. the A∩B sliver's filter doesn't also match
+// items that are actually in the A∩B∩C center. `exact: false` (a parent
+// circle or legend item — the WHOLE circle: A-only plus every overlap A
+// participates in) omits those NOT clauses.
+function buildSplFilterToken(keys, names, exact = true) {
+    const quote = (name) => `"${String(name).replace(/"/g, '\\"')}"`;
+    const included = keys.map((k) => `${quote(names[k])}=1`);
+    if (!exact) return included.join(' AND ');
+    const excluded = REGION_KEYS.filter((k) => names[k] && !keys.includes(k)).map(
+        (k) => `NOT ${quote(names[k])}=1`
+    );
+    return [...included, ...excluded].join(' AND ');
+}
+
 // A click drilldown payload is one flat object of token values. Dashboard
 // Studio's own "Set Tokens" click interaction editor only ever reads THREE
 // shapes of key out of this object — `name`, `value`, and `row.<fieldname>.
@@ -400,6 +427,7 @@ function buildDotDrilldownPayload(d, names) {
     payload['row.tooltip.value'] = buildDotTooltipText(d);
     payload['row.color.value'] = d.color;
     payload['row.categoryList.value'] = buildCategoryListToken(d.memberships, names);
+    payload['row.splFilter.value'] = buildSplFilterToken(d.memberships, names);
     return payload;
 }
 
@@ -1121,6 +1149,31 @@ function renderVenn(
     // Shared by both modes — the region-count tooltip (below) reuses this
     // same node/pattern rather than a second implementation.
     const tooltip = wrap.append('div').attr('class', 'venn-tooltip');
+    const TOOLTIP_OFFSET = 12;
+    // x/y come from d3.pointer(event, wrap.node()), i.e. already relative to
+    // wrap's own box (wrap is the tooltip's `position: relative` offset
+    // parent — see .venn-chart-wrap in visualization.css), so edge detection
+    // has to compare against wrap's own dimensions, not window.innerWidth —
+    // the wrap can be smaller than the viewport (e.g. a narrow dashboard
+    // panel) or offset within a scrolled page. Flips the tooltip to the
+    // opposite side of the cursor when the default placement would run it
+    // past the wrap's edge, so right-edge dots don't render their tooltip
+    // clipped off-panel (and likewise for the bottom edge).
+    function positionTooltip(x, y) {
+        const node = tooltip.node();
+        const tw = node.offsetWidth;
+        const th = node.offsetHeight;
+        const wrapW = wrap.node().clientWidth;
+        const wrapH = wrap.node().clientHeight;
+
+        let left = x + TOOLTIP_OFFSET;
+        if (left + tw > wrapW) left = x - TOOLTIP_OFFSET - tw;
+
+        let top = y - 24;
+        if (top + th > wrapH) top = y - th - TOOLTIP_OFFSET;
+
+        tooltip.style('left', `${left}px`).style('top', `${top}px`);
+    }
     // Assigned inside whichever branch below actually runs; referenced
     // later by setActiveSet/animateOutCategory/the returned handle, which
     // need to work correctly regardless of which mode rendered.
@@ -1196,7 +1249,7 @@ function renderVenn(
         })
         .on('mousemove', (event) => {
             const [x, y] = d3.pointer(event, wrap.node());
-            tooltip.style('left', `${x + 12}px`).style('top', `${y - 24}px`);
+            positionTooltip(x, y);
         })
         .on('mouseout', () => {
             tooltip.classed('venn-tooltip--visible', false);
@@ -1277,6 +1330,7 @@ function renderVenn(
                 'row.totalValue.value': r.totalValue,
                 'row.color.value': blend(r.memberKeys, categoryColors),
                 'row.categoryList.value': buildCategoryListToken(r.memberKeys, names),
+                'row.splFilter.value': buildSplFilterToken(r.memberKeys, names),
             };
         }
 
@@ -1295,7 +1349,7 @@ function renderVenn(
             })
             .on('mousemove', (event) => {
                 const [x, y] = d3.pointer(event, wrap.node());
-                tooltip.style('left', `${x + 12}px`).style('top', `${y - 24}px`);
+                positionTooltip(x, y);
             })
             .on('mouseleave', () => {
                 setActiveSet(null);
@@ -1375,6 +1429,7 @@ function renderVenn(
                     name: names[key],
                     'row.color.value': categoryColors[key],
                     'row.categoryList.value': buildCategoryListToken([key], names),
+                    'row.splFilter.value': buildSplFilterToken([key], names, false),
                 };
             }
         })
@@ -1585,6 +1640,7 @@ function Legend({ names, onHoverSet, onToggle, disabledCategoryNames, textColor,
                                     name: names[k],
                                     'row.color.value': categoryColors[k],
                                     'row.categoryList.value': buildCategoryListToken([k], names),
+                                    'row.splFilter.value': buildSplFilterToken([k], names, false),
                                 };
                             }
                         }}

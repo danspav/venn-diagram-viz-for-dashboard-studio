@@ -3,11 +3,11 @@ import splunklib.client as client
 import getpass
 
 splunkServer = "localhost"
-splunkAdmin = "daniel"
-#splunkAdmin = "admin"
+#splunkAdmin = "daniel"
+splunkAdmin = "admin"
 #splunkPassword = "c3pcdJQtQACEVb7M73RMRGabH"
-splunkPassword = "iPhone123!"
-#splunkPassword = "password"
+#splunkPassword = "iPhone123!"
+splunkPassword = "password"
 splunkDestApp = "venn_diagram_viz_for_dashboard_studio"
 
 if splunkDestApp:

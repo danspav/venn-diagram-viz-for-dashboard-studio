@@ -287,15 +287,37 @@ const dotSel = dotLayer.selectAll('circle.host-dot')
 
 const tooltip = d3.select('body').append('div').attr('class','venntooltip').style('opacity',0);
 
+const TOOLTIP_OFFSET = 12;
+
+// Flips the tooltip to the opposite side of the cursor when the default
+// placement would run it past the viewport edge (right-edge dots would
+// otherwise render the tooltip off-screen, and vice versa for the left).
+function positionTooltip(event){
+  const node = tooltip.node();
+  const tw = node.offsetWidth;
+  const th = node.offsetHeight;
+
+  let left = event.pageX + TOOLTIP_OFFSET;
+  if (left + tw > window.scrollX + window.innerWidth){
+    left = event.pageX - TOOLTIP_OFFSET - tw;
+  }
+
+  let top = event.pageY - 24;
+  if (top + th > window.scrollY + window.innerHeight){
+    top = event.pageY - th - TOOLTIP_OFFSET;
+  }
+
+  tooltip.style('left', left+'px').style('top', top+'px');
+}
+
 dotSel
   .on('mouseover', function(event,d){
     tooltip.transition().duration(100).style('opacity',1);
-    tooltip.html(`<b>${d.id}</b><br>${d.memberships.map(k=>NAMES[k]).join(' + ')}<br>${d.alerts} alerts`)
-      .style('left', (event.pageX+12)+'px')
-      .style('top', (event.pageY-24)+'px');
+    tooltip.html(`<b>${d.id}</b><br>${d.memberships.map(k=>NAMES[k]).join(' + ')}<br>${d.alerts} alerts`);
+    positionTooltip(event);
   })
   .on('mousemove', function(event){
-    tooltip.style('left', (event.pageX+12)+'px').style('top', (event.pageY-24)+'px');
+    positionTooltip(event);
   })
   .on('mouseout', function(){
     tooltip.transition().duration(150).style('opacity',0);

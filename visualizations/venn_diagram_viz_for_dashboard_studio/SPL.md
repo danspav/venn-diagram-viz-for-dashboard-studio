@@ -132,25 +132,27 @@ that aren't literally raw SPL columns:
 
 - **A dot** (an item) — `name` (the item id), `value` (its summed value),
   `row.tooltip.value` (its combined tooltip text), `row.color.value` (its
-  blended hex color), `row.categoryList.value` (see below), and
-  `row.<field>.value` for **every column your search actually supplied**,
-  under that column's own name — e.g. `row.host.value`, `row.count.value`,
-  whatever you called your columns above. If your search happens to name a
-  column literally `tooltip` (or `color`), the combined/blended value here
-  wins over that raw column's value under the same key. If an item spans
-  multiple rows, `row.<field>.value` reflects the last row that had a
-  non-blank value for that field (a row that left a column blank doesn't
-  erase an earlier row's value for it).
+  blended hex color), `row.categoryList.value` and `row.splFilter.value`
+  (see below), and `row.<field>.value` for **every column your search
+  actually supplied**, under that column's own name — e.g. `row.host.value`,
+  `row.count.value`, whatever you called your columns above. If your search
+  happens to name a column literally `tooltip` (or `color`), the
+  combined/blended value here wins over that raw column's value under the
+  same key. If an item spans multiple rows, `row.<field>.value` reflects the
+  last row that had a non-blank value for that field (a row that left a
+  column blank doesn't erase an earlier row's value for it).
 - **A parent circle** (a whole category) — `name` (the category name),
-  `row.color.value`, and `row.categoryList.value` (see below).
+  `row.color.value`, `row.categoryList.value`, and `row.splFilter.value`
+  (see below).
 - **A legend item** — same as a parent circle: `name`, `row.color.value`,
-  `row.categoryList.value`. Clicking a legend item still also toggles that
-  category on/off as before — both happen on the same click.
+  `row.categoryList.value`, `row.splFilter.value`. Clicking a legend item
+  still also toggles that category on/off as before — both happen on the
+  same click.
 - **A region's count** (only in "Show counts" mode, see below) — `name`
   (the category name(s) that region belongs to, e.g. `Category A +
   Category B`), `value` (the item count shown), `row.totalValue.value`
   (the sum of those items' own values), `row.color.value` (the region's
-  blended color), and `row.categoryList.value`.
+  blended color), `row.categoryList.value`, and `row.splFilter.value`.
 
 ### `row.categoryList.value` — for use with SPL's `IN()`
 
@@ -172,6 +174,31 @@ A-only + B-only + A∩B together. That's normally the more useful query
 ("show me everything related to this pair of signals"); the region itself
 already shows you the exact-overlap count/total if that's what you
 actually wanted to report on.
+
+### `row.splFilter.value` — the exact-region opposite of `row.categoryList.value`
+
+Where `row.categoryList.value` is a union, `row.splFilter.value` is the AND
+of the *exact* region clicked, for filtering a downstream search that has
+one boolean field per category (named after the category's own display
+name, valued `1`/`0` — see `in_A`/`in_B`/`in_C` in the sample data above).
+Field names are double-quoted for SPL's search-bar syntax (a field name
+containing spaces needs quoting there); this token is meant for a bare
+`| search ...` term, not a `where` clause — `where` treats a double-quoted
+token as a string literal, not a field reference, and would silently break.
+
+```spl
+| search $clicked_filter$
+```
+
+- **A dot or a region's count** — both represent one specific,
+  mutually-exclusive Venn region, so the expression includes `NOT
+  "<category>"=1` for every category *not* in that region. Clicking the
+  A∩B sliver gives `"Category A"=1 AND "Category B"=1 AND NOT "Category
+  C"=1` — it deliberately does NOT also match A∩B∩C center items, unlike
+  `row.categoryList.value`'s union behavior above.
+- **A parent circle or legend item** — represents the WHOLE circle (that
+  category plus every overlap it participates in), so no `NOT` clauses are
+  added: clicking category A's circle gives just `"Category A"=1`.
 
 ## "Show counts instead of dots" option
 
