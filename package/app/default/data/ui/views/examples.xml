@@ -42,9 +42,16 @@
     "visualizations": {
         "viz_E0o5fD4v": {
             "options": {
-                "markdown": "$splFilter$"
+                "markdown": "Clicking a circle segment will generate a token based on **row.splFilter.value** \n\nYou can assign this token under the Interactions menu. \n\nWith this token, you can filter the source data based on the selected circle segment:\n\n$splFilter$"
             },
             "type": "splunk.markdown"
+        },
+        "viz_GYDCiUME": {
+            "options": {
+                "rx": 10,
+                "strokeWidth": 0
+            },
+            "type": "splunk.rectangle"
         },
         "viz_LCU1Avep": {
             "dataSources": {
@@ -73,10 +80,42 @@
             },
             "type": "venn_diagram_viz_for_dashboard_studio.venn_diagram_viz_for_dashboard_studio"
         },
+        "viz_PFpfDylT": {
+            "options": {
+                "fillColor": "#4c4f52",
+                "fillOpacity": 0.7,
+                "rx": 10,
+                "strokeWidth": 0
+            },
+            "type": "splunk.rectangle"
+        },
+        "viz_UzD3hnbx": {
+            "options": {
+                "rx": 10,
+                "strokeWidth": 0
+            },
+            "type": "splunk.rectangle"
+        },
+        "viz_VGnPjkXs": {
+            "options": {
+                "customFontSize": 20,
+                "fontSize": "custom",
+                "markdown": "Webserver Error Codes"
+            },
+            "type": "splunk.markdown"
+        },
         "viz_W68rYFtY": {
             "containerOptions": {
-                "visibility": {}
+                "visibility": {
+                    "hideWhenNoData": true
+                }
             },
+            "cornerRadius": [
+                10,
+                10,
+                10,
+                10
+            ],
             "dataSources": {
                 "primary": "ds_HiNswp3T"
             },
@@ -127,14 +166,38 @@
             },
             "type": "venn_diagram_viz_for_dashboard_studio.venn_diagram_viz_for_dashboard_studio"
         },
-        "viz_p9DjjMEn": {
-            "containerOptions": {
-                "visibility": {}
+        "viz_hl2SIMiA": {
+            "options": {
+                "customFontSize": 36,
+                "fontColor": "#000000",
+                "fontSize": "custom",
+                "markdown": "Token Usage"
             },
-            "dataSources": {
-                "primary": "ds_6PQ9e8Ia"
+            "type": "splunk.markdown"
+        },
+        "viz_k2gbbc6x": {
+            "options": {
+                "fillColor": "#4c4f52",
+                "fillOpacity": 0.7,
+                "rx": 10,
+                "strokeWidth": 0
             },
-            "type": "splunk.table"
+            "type": "splunk.rectangle"
+        },
+        "viz_nxkrzVeP": {
+            "options": {
+                "fontColor": "#ffffff",
+                "markdown": "### Tokens\n\nAssign tokens under the Interactions menu - select \"Use predefined token\".\n\nChoose from any of these tokens:\n\n| Token | Description |\n|---|---|\n| `row.splFilter.value` | An SPL filter for the selected segment |\n| `row.category.value` | Category |\n| `row.value.value` | Value |\n| `row.tooltip.value` | Tooltip |\n| `row.<field>.value` | The field from the search results |"
+            },
+            "type": "splunk.markdown"
+        },
+        "viz_thnvW7j9": {
+            "options": {
+                "customFontSize": 20,
+                "fontSize": "custom",
+                "markdown": "Webserver Error Codes"
+            },
+            "type": "splunk.markdown"
         }
     },
     "dataSources": {
@@ -176,59 +239,135 @@
         "layoutDefinitions": {
             "layout_1": {
                 "options": {
-                    "backgroundColor": "#504949",
+                    "backgroundColor": "transparent",
+                    "backgroundImage": {
+                        "sizeType": "contain",
+                        "src": "/static/app/venn_diagram_viz_for_dashboard_studio/images/background.png",
+                        "x": 0,
+                        "y": 0
+                    },
                     "display": "auto",
                     "height": 960,
                     "width": 1440
                 },
                 "structure": [
                     {
+                        "item": "viz_k2gbbc6x",
+                        "position": {
+                            "h": 380,
+                            "w": 710,
+                            "x": 710,
+                            "y": 510
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_PFpfDylT",
+                        "position": {
+                            "h": 380,
+                            "w": 690,
+                            "x": 10,
+                            "y": 510
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_UzD3hnbx",
+                        "position": {
+                            "h": 420,
+                            "w": 710,
+                            "x": 710,
+                            "y": 70
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_GYDCiUME",
+                        "position": {
+                            "h": 420,
+                            "w": 690,
+                            "x": 10,
+                            "y": 70
+                        },
+                        "type": "block"
+                    },
+                    {
                         "item": "viz_Zep70T3H",
                         "position": {
-                            "h": 450,
+                            "h": 400,
                             "w": 670,
                             "x": 20,
-                            "y": 30
+                            "y": 80
                         },
                         "type": "block"
                     },
                     {
                         "item": "viz_LCU1Avep",
                         "position": {
-                            "h": 450,
+                            "h": 390,
                             "w": 670,
-                            "x": 700,
-                            "y": 30
+                            "x": 730,
+                            "y": 80
                         },
                         "type": "block"
                     },
                     {
                         "item": "viz_E0o5fD4v",
                         "position": {
-                            "h": 50,
-                            "w": 790,
-                            "x": 390,
-                            "y": 520
-                        },
-                        "type": "block"
-                    },
-                    {
-                        "item": "viz_p9DjjMEn",
-                        "position": {
-                            "h": 300,
+                            "h": 110,
                             "w": 630,
-                            "x": 60,
-                            "y": 570
+                            "x": 720,
+                            "y": 520
                         },
                         "type": "block"
                     },
                     {
                         "item": "viz_W68rYFtY",
                         "position": {
-                            "h": 300,
-                            "w": 630,
-                            "x": 740,
-                            "y": 570
+                            "h": 240,
+                            "w": 690,
+                            "x": 720,
+                            "y": 640
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_nxkrzVeP",
+                        "position": {
+                            "h": 350,
+                            "w": 610,
+                            "x": 30,
+                            "y": 520
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_hl2SIMiA",
+                        "position": {
+                            "h": 60,
+                            "w": 1400,
+                            "x": 20,
+                            "y": 10
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_thnvW7j9",
+                        "position": {
+                            "h": 50,
+                            "w": 680,
+                            "x": 720,
+                            "y": 80
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_VGnPjkXs",
+                        "position": {
+                            "h": 50,
+                            "w": 680,
+                            "x": 20,
+                            "y": 80
                         },
                         "type": "block"
                     }
@@ -247,6 +386,5 @@
         }
     }
 }
-
   ]]></definition>
 </dashboard>

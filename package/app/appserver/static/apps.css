@@ -1,7 +1,7 @@
 #globe_viz_for_dashboard_studio {
     width: 72px;
     height: 72px;
-    background: url(/static/app/venn_diagram_for_dashboard_studio/images/sprites.png) -0px -0px;
+    background: url(/static/app/venn_diagram_viz_for_dashboard_studio/images/sprites.png) -0px -0px;
     background-size: auto 50px;
     background-repeat: no-repeat;
     background-position: -850px 0;
@@ -9,7 +9,7 @@
 #calendar_viz_for_dashboard_studio {
     width: 72px;
     height: 72px;
-    background: url(/static/app/venn_diagram_for_dashboard_studio/images/sprites.png) -0px -0px;
+    background: url(/static/app/venn_diagram_viz_for_dashboard_studio/images/sprites.png) -0px -0px;
     background-size: auto 50px;
     background-repeat: no-repeat;
     background-position: -900px 0;
@@ -19,7 +19,7 @@
 #flappypony {
     width: 72px;
     height: 72px;
-    background: url(/static/app/venn_diagram_for_dashboard_studio/images/sprites.png) -0px -0px;
+    background: url(/static/app/venn_diagram_viz_for_dashboard_studio/images/sprites.png) -0px -0px;
     background-size: auto 50px;
     background-repeat: no-repeat;
     background-position: 0px 0;
@@ -27,7 +27,7 @@
 #heatmapviz {
     width: 72px;
     height: 72px;
-    background: url(/static/app/venn_diagram_for_dashboard_studio/images/sprites.png) -72px -0px;
+    background: url(/static/app/venn_diagram_viz_for_dashboard_studio/images/sprites.png) -72px -0px;
     background-size: auto 50px;
     background-repeat: no-repeat;
     background-position: -50px 0;
@@ -35,7 +35,7 @@
 #networkdiagramviz {
     width: 72px;
     height: 72px;
-    background: url(/static/app/venn_diagram_for_dashboard_studio/images/sprites.png) -144px -0px;
+    background: url(/static/app/venn_diagram_viz_for_dashboard_studio/images/sprites.png) -144px -0px;
     background-size: auto 50px;
     background-repeat: no-repeat;
     background-position: -100px 0;
@@ -43,7 +43,7 @@
 #pictorialchartviz {
     width: 72px;
     height: 72px;
-    background: url(/static/app/venn_diagram_for_dashboard_studio/images/sprites.png) -216px -0px;
+    background: url(/static/app/venn_diagram_viz_for_dashboard_studio/images/sprites.png) -216px -0px;
     background-size: auto 50px;
     background-repeat: no-repeat;
     background-position: -150px 0;
@@ -51,7 +51,7 @@
 #ollydashboardcloner {
     width: 72px;
     height: 72px;
-    background: url(/static/app/venn_diagram_for_dashboard_studio/images/sprites.png) -288px -0px;
+    background: url(/static/app/venn_diagram_viz_for_dashboard_studio/images/sprites.png) -288px -0px;
     background-size: auto 50px;
     background-repeat: no-repeat;
     background-position: -200px 0;
@@ -59,7 +59,7 @@
 #otelyamlvalidator {
     width: 72px;
     height: 72px;
-    background: url(/static/app/venn_diagram_for_dashboard_studio/images/sprites.png) -360px -0px;
+    background: url(/static/app/venn_diagram_viz_for_dashboard_studio/images/sprites.png) -360px -0px;
     background-size: auto 50px;
     background-repeat: no-repeat;
     background-position: -250px 0;
@@ -67,7 +67,7 @@
 #performanceanalysisviz {
     width: 72px;
     height: 72px;
-    background: url(/static/app/venn_diagram_for_dashboard_studio/images/sprites.png) -432px -0px;
+    background: url(/static/app/venn_diagram_viz_for_dashboard_studio/images/sprites.png) -432px -0px;
     background-size: auto 50px;
     background-repeat: no-repeat;
     background-position: -300px 0;
@@ -75,7 +75,7 @@
 #simplemapsviz {
     width: 72px;
     height: 72px;
-    background: url(/static/app/venn_diagram_for_dashboard_studio/images/sprites.png) -504px -0px;
+    background: url(/static/app/venn_diagram_viz_for_dashboard_studio/images/sprites.png) -504px -0px;
     background-size: auto 50px;
     background-repeat: no-repeat;
     background-position: -350px 0;
@@ -83,7 +83,7 @@
 #tapublishtoconfluence {
     width: 72px;
     height: 72px;
-    background: url(/static/app/venn_diagram_for_dashboard_studio/images/sprites.png) -576px -0px;
+    background: url(/static/app/venn_diagram_viz_for_dashboard_studio/images/sprites.png) -576px -0px;
     background-size: auto 50px;
     background-repeat: no-repeat;
     background-position: -400px 0;
@@ -91,7 +91,7 @@
 #treemapviz {
     width: 72px;
     height: 72px;
-    background: url(/static/app/venn_diagram_for_dashboard_studio/images/sprites.png) -648px -0px;
+    background: url(/static/app/venn_diagram_viz_for_dashboard_studio/images/sprites.png) -648px -0px;
     background-size: auto 50px;
     background-repeat: no-repeat;
     background-position: -450px 0;
@@ -99,7 +99,7 @@
 #animatedchartviz {
     width: 72px;
     height: 72px;
-    background: url(/static/app/venn_diagram_for_dashboard_studio/images/sprites.png) -720px -0px;
+    background: url(/static/app/venn_diagram_viz_for_dashboard_studio/images/sprites.png) -720px -0px;
     background-size: auto 50px;
     background-repeat: no-repeat;
     background-position: -500px 0;
@@ -107,7 +107,7 @@
 #treeviewviz {
     width: 72px;
     height: 72px;
-    background: url(/static/app/venn_diagram_for_dashboard_studio/images/sprites.png) -792px -0px;
+    background: url(/static/app/venn_diagram_viz_for_dashboard_studio/images/sprites.png) -792px -0px;
     background-size: auto 50px;
     background-repeat: no-repeat;
     background-position: -550px 0;
@@ -115,7 +115,7 @@
 #wordtreeviz {
     width: 72px;
     height: 72px;
-    background: url(/static/app/venn_diagram_for_dashboard_studio/images/sprites.png) -864px -0px;
+    background: url(/static/app/venn_diagram_viz_for_dashboard_studio/images/sprites.png) -864px -0px;
     background-size: auto 50px;
     background-repeat: no-repeat;
     background-position: -600px 0;
@@ -123,7 +123,7 @@
 #eventtimelineviz {
     width: 72px;
     height: 72px;
-    background: url(/static/app/venn_diagram_for_dashboard_studio/images/sprites.png) -936px -0px;
+    background: url(/static/app/venn_diagram_viz_for_dashboard_studio/images/sprites.png) -936px -0px;
     background-size: auto 50px;
     background-repeat: no-repeat;
     background-position: -650px 0;
@@ -131,7 +131,7 @@
 #carouselviz {
     width: 72px;
     height: 72px;
-    background: url(/static/app/venn_diagram_for_dashboard_studio/images/sprites.png) -1008px -0px;
+    background: url(/static/app/venn_diagram_viz_for_dashboard_studio/images/sprites.png) -1008px -0px;
     background-size: auto 50px;
     background-repeat: no-repeat;
     background-position: -700px 0;
@@ -139,7 +139,7 @@
 #departuresboardviz {
     width: 72px;
     height: 72px;
-    background: url(/static/app/venn_diagram_for_dashboard_studio/images/sprites.png) -1080px -0px;
+    background: url(/static/app/venn_diagram_viz_for_dashboard_studio/images/sprites.png) -1080px -0px;
     background-size: auto 50px;
     background-repeat: no-repeat;
     background-position: -750px 0;
@@ -147,7 +147,7 @@
 #sankeyviz {
     width: 72px;
     height: 72px;
-    background: url(/static/app/venn_diagram_for_dashboard_studio/images/sprites.png) -1152px -0px;
+    background: url(/static/app/venn_diagram_viz_for_dashboard_studio/images/sprites.png) -1152px -0px;
     background-size: auto 50px;
     background-repeat: no-repeat;
     background-position: -800px 0;
