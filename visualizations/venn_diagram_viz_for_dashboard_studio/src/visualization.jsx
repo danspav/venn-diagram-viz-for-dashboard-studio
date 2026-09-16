@@ -1636,7 +1636,12 @@ function renderVenn(
             setActiveSet(r.memberKeys);
             tooltip.selectAll('*').remove();
             tooltip.append('div').attr('class', 'venn-tooltip-id').text(regionDisplayName(r));
-            tooltip.append('div').text(`${r.count} item${r.count === 1 ? '' : 's'}`);
+            // Percentage of the whole diagram's total item count — only in
+            // the tooltip, not the on-screen number itself (not enough
+            // room there, especially for the smaller regions this matters
+            // least for anyway).
+            const pct = hosts.length > 0 ? ((r.count / hosts.length) * 100).toFixed(1) : '0.0';
+            tooltip.append('div').text(`${r.count} item${r.count === 1 ? '' : 's'} (${pct}%)`);
             tooltip.append('div').text(`Total value: ${r.totalValue}`);
             tooltip.classed('venn-tooltip--visible', true);
             if (hoverTargetRef) hoverTargetRef.current = buildRegionDrilldownPayload(r);
