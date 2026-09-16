@@ -1,0 +1,521 @@
+<dashboard version="2" theme="dark">
+  <label>Options</label>
+  <definition><![CDATA[
+{
+    "title": "Options",
+    "description": "",
+    "inputs": {},
+    "defaults": {
+        "dataSources": {
+            "ds.search": {
+                "options": {
+                    "queryParameters": {
+                        "earliest": "$global_time.earliest$",
+                        "latest": "$global_time.latest$"
+                    }
+                }
+            },
+            "ds.spl2": {
+                "options": {
+                    "queryParameters": {
+                        "earliest": "$global_time.earliest$",
+                        "latest": "$global_time.latest$"
+                    }
+                }
+            }
+        },
+        "visualizations": {
+            "global": {
+                "showProgressBar": true
+            }
+        }
+    },
+    "visualizations": {
+        "viz_4g1NeHsn": {
+            "options": {
+                "rx": 10,
+                "strokeWidth": 0
+            },
+            "type": "splunk.rectangle"
+        },
+        "viz_C7d3gVTJ": {
+            "options": {
+                "fillColor": "#4c4f52",
+                "fillOpacity": 0.7,
+                "rx": 10,
+                "strokeWidth": 0
+            },
+            "type": "splunk.rectangle"
+        },
+        "viz_E0o5fD4v": {
+            "options": {
+                "markdown": "### Numeric View\n\nUse Numeric View when you want to concentrate on the volume of entities that fall into different categories. "
+            },
+            "type": "splunk.markdown"
+        },
+        "viz_GYDCiUME": {
+            "options": {
+                "rx": 10,
+                "strokeWidth": 0
+            },
+            "type": "splunk.rectangle"
+        },
+        "viz_H8RWrzR1": {
+            "options": {
+                "markdown": "### Legend Position\n\nYou can make the legend appear at the top, left, bottom, or right of the diagram - or hide it completely."
+            },
+            "type": "splunk.markdown"
+        },
+        "viz_Kz6q5LEg": {
+            "options": {
+                "markdown": "### Custom colors\n\nYou can set custom colors for the 3 categories, and choose to fill them or not."
+            },
+            "type": "splunk.markdown"
+        },
+        "viz_LCU1Avep": {
+            "dataSources": {
+                "primary": "ds_XO1ddpJ5"
+            },
+            "eventHandlers": [
+                {
+                    "options": {
+                        "tokens": [
+                            {
+                                "key": "row.splFilter.value",
+                                "token": "splFilter2"
+                            }
+                        ]
+                    },
+                    "type": "drilldown.setToken"
+                }
+            ],
+            "options": {
+                "animateItems": true,
+                "backgroundColor": "transparent",
+                "categoryColorC": "#dc4e41",
+                "fillCircles": true,
+                "legendPosition": "left",
+                "showCounts": true,
+                "style": "numeric"
+            },
+            "type": "venn_diagram_viz_for_dashboard_studio.venn_diagram_viz_for_dashboard_studio"
+        },
+        "viz_NOCkPdLs": {
+            "options": {
+                "rx": 10,
+                "strokeWidth": 0
+            },
+            "type": "splunk.rectangle"
+        },
+        "viz_PFpfDylT": {
+            "options": {
+                "fillColor": "#4c4f52",
+                "fillOpacity": 0.7,
+                "rx": 10,
+                "strokeWidth": 0
+            },
+            "type": "splunk.rectangle"
+        },
+        "viz_UzD3hnbx": {
+            "options": {
+                "rx": 10,
+                "strokeWidth": 0
+            },
+            "type": "splunk.rectangle"
+        },
+        "viz_VGnPjkXs": {
+            "options": {
+                "customFontSize": 20,
+                "fontSize": "custom",
+                "markdown": "Entity View"
+            },
+            "type": "splunk.markdown"
+        },
+        "viz_Zep70T3H": {
+            "dataSources": {
+                "primary": "ds_NPKp0K3D"
+            },
+            "eventHandlers": [
+                {
+                    "options": {
+                        "tokens": [
+                            {
+                                "key": "row.splFilter.value",
+                                "token": "splFilter"
+                            }
+                        ]
+                    },
+                    "type": "drilldown.setToken"
+                }
+            ],
+            "options": {
+                "animateItems": true,
+                "backgroundColor": "transparent",
+                "fillCircles": true,
+                "legendPosition": "left"
+            },
+            "type": "venn_diagram_viz_for_dashboard_studio.venn_diagram_viz_for_dashboard_studio"
+        },
+        "viz_choZY8gc": {
+            "dataSources": {
+                "primary": "ds_XO1ddpJ5"
+            },
+            "eventHandlers": [
+                {
+                    "options": {
+                        "tokens": [
+                            {
+                                "key": "row.splFilter.value",
+                                "token": "token_BUdGXdwD"
+                            }
+                        ]
+                    },
+                    "type": "drilldown.setToken"
+                }
+            ],
+            "options": {
+                "backgroundColor": "transparent",
+                "categoryColorA": "#d6b885",
+                "categoryColorB": "#6ad0fb",
+                "categoryColorC": "#c397fc",
+                "fillCircles": true,
+                "legendPosition": "left",
+                "showCounts": true,
+                "style": "numeric"
+            },
+            "type": "venn_diagram_viz_for_dashboard_studio.venn_diagram_viz_for_dashboard_studio"
+        },
+        "viz_du3vC5sP": {
+            "dataSources": {
+                "primary": "ds_NPKp0K3D"
+            },
+            "eventHandlers": [
+                {
+                    "options": {
+                        "tokens": [
+                            {
+                                "key": "row.splFilter.value",
+                                "token": "token_l7P8mfi4"
+                            }
+                        ]
+                    },
+                    "type": "drilldown.setToken"
+                }
+            ],
+            "options": {
+                "animateItems": true,
+                "backgroundColor": "transparent",
+                "categoryColorA": "#d6b885",
+                "categoryColorB": "#6ad0fb",
+                "categoryColorC": "#c397fc",
+                "showCounts": true
+            },
+            "type": "venn_diagram_viz_for_dashboard_studio.venn_diagram_viz_for_dashboard_studio"
+        },
+        "viz_hl2SIMiA": {
+            "options": {
+                "customFontSize": 36,
+                "fontColor": "#000000",
+                "fontSize": "custom",
+                "markdown": "Venn Diagram Viz - Options"
+            },
+            "type": "splunk.markdown"
+        },
+        "viz_k2gbbc6x": {
+            "options": {
+                "fillColor": "#4c4f52",
+                "fillOpacity": 0.7,
+                "rx": 10,
+                "strokeWidth": 0
+            },
+            "type": "splunk.rectangle"
+        },
+        "viz_k7umu5kG": {
+            "options": {
+                "fillColor": "#4c4f52",
+                "fillOpacity": 0.7,
+                "rx": 10,
+                "strokeWidth": 0
+            },
+            "type": "splunk.rectangle"
+        },
+        "viz_nxkrzVeP": {
+            "options": {
+                "fontColor": "#ffffff",
+                "markdown": "### Entity View\n\nShowing the individual elements that belong to each set lets you more easily explore which entities are higher priority, with tooltips that explain what event caused it to be catergorised. \n"
+            },
+            "type": "splunk.markdown"
+        },
+        "viz_thnvW7j9": {
+            "options": {
+                "customFontSize": 20,
+                "fontSize": "custom",
+                "markdown": "Numeric View"
+            },
+            "type": "splunk.markdown"
+        }
+    },
+    "dataSources": {
+        "ds_6PQ9e8Ia": {
+            "name": "Table",
+            "options": {
+                "extend": "ds_NPKp0K3D",
+                "query": "|  eventstats values(category) as category by host\n|  search $splFilter$"
+            },
+            "type": "ds.chain"
+        },
+        "ds_HiNswp3T": {
+            "name": "Table copy 1",
+            "options": {
+                "extend": "ds_XO1ddpJ5",
+                "query": "|  eventstats values(category) as category by host\n|  search $splFilter2$"
+            },
+            "type": "ds.chain"
+        },
+        "ds_NPKp0K3D": {
+            "name": "Search_1",
+            "options": {
+                "query": "| makeresults count=1\r\n| eval host=split(\"db-prod-01|cache-prod-02|app-prod-05|web-prod-01|web-prod-02|api-prod-03|worker-prod-01|web-prod-03|web-prod-04|api-prod-01|api-prod-02|worker-prod-02|worker-prod-03|worker-prod-04|batch-prod-01|etl-prod-02|log-prod-01|cache-prod-01|session-prod-01|redis-prod-02|log-prod-02|backup-prod-01|archive-prod-01|nfs-prod-01\", \"|\")\r\n| mvexpand host\r\n| eval in_cpu=if(match(host, \"^(db-prod-01|cache-prod-02|app-prod-05|web-prod-01|web-prod-02|api-prod-03|worker-prod-01|web-prod-03|web-prod-04|api-prod-01|api-prod-02|worker-prod-02|worker-prod-03|worker-prod-04)$\"), 1, 0)\r\n| eval in_mem=if(match(host, \"^(db-prod-01|cache-prod-02|app-prod-05|web-prod-01|web-prod-02|api-prod-03|worker-prod-01|batch-prod-01|etl-prod-02|log-prod-01|cache-prod-01|session-prod-01|redis-prod-02)$\"), 1, 0)\r\n| eval in_disk=if(match(host, \"^(db-prod-01|cache-prod-02|app-prod-05|batch-prod-01|etl-prod-02|log-prod-01|log-prod-02|backup-prod-01|archive-prod-01|nfs-prod-01)$\"), 1, 0)\r\n| eval category=mvappend(\r\n    if(in_cpu=1, \"High CPU\", null()),\r\n    if(in_mem=1, \"High Memory\", null()),\r\n    if(in_disk=1, \"Low Disk Space\", null())\r\n  )\r\n| mvexpand category\r\n| eval value=case(\r\n    category=\"High CPU\", round(random()/2147483647*14)+85,\r\n    category=\"High Memory\", round(random()/2147483647*13)+85,\r\n    category=\"Low Disk Space\", round(random()/2147483647*9)+90\r\n  )\r\n| eval tooltip=case(\r\n    category=\"High CPU\", value . \"% CPU utilization\",\r\n    category=\"High Memory\", value . \"% memory utilization\",\r\n    category=\"Low Disk Space\", value . \"% disk used\"\r\n  )\r\n| table host category value tooltip",
+                "queryParameters": {
+                    "earliest": "-15m",
+                    "latest": "now"
+                }
+            },
+            "type": "ds.search"
+        },
+        "ds_XO1ddpJ5": {
+            "name": "second",
+            "options": {
+                "query": "| makeresults count=7\r\n| streamstats count as row_num\r\n| eval host=\"prodweb00\" . row_num\r\n| eval in_2xx=if(random() % 100 < 65, 1, 0)\r\n| eval in_4xx=if(random() % 100 < 55, 1, 0)\r\n| eval in_5xx=if(random() % 100 < 40, 1, 0)\r\n| eval in_2xx=if(in_2xx=0 AND in_4xx=0 AND in_5xx=0, 1, in_2xx)\r\n| eval category=mvappend(\r\n    if(in_2xx=1, \"2xx Success\", null()),\r\n    if(in_4xx=1, \"4xx Client Error\", null()),\r\n    if(in_5xx=1, \"5xx Server Error\", null())\r\n  )\r\n| mvexpand category\r\n| eval value=case(\r\n    category=\"2xx Success\", round(random()/2147483647*400)+50,\r\n    category=\"4xx Client Error\", round(random()/2147483647*150)+5,\r\n    category=\"5xx Server Error\", round(random()/2147483647*60)+1\r\n  )\r\n| eval tooltip=value . \" requests returned \" . category\r\n| table host category value tooltip",
+                "queryParameters": {
+                    "earliest": "-15m",
+                    "latest": "now"
+                }
+            },
+            "type": "ds.search"
+        }
+    },
+    "layout": {
+        "globalInputs": [],
+        "layoutDefinitions": {
+            "layout_1": {
+                "options": {
+                    "backgroundColor": "transparent",
+                    "backgroundImage": {
+                        "sizeType": "cover",
+                        "src": "/static/app/venn_diagram_viz_for_dashboard_studio/images/background.png",
+                        "x": 0,
+                        "y": 0
+                    },
+                    "display": "auto",
+                    "height": 1200,
+                    "width": 1440
+                },
+                "structure": [
+                    {
+                        "item": "viz_NOCkPdLs",
+                        "position": {
+                            "h": 460,
+                            "w": 710,
+                            "x": 710,
+                            "y": 710
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_k2gbbc6x",
+                        "position": {
+                            "h": 100,
+                            "w": 710,
+                            "x": 710,
+                            "y": 70
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_PFpfDylT",
+                        "position": {
+                            "h": 100,
+                            "w": 690,
+                            "x": 10,
+                            "y": 70
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_UzD3hnbx",
+                        "position": {
+                            "h": 420,
+                            "w": 710,
+                            "x": 710,
+                            "y": 180
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_GYDCiUME",
+                        "position": {
+                            "h": 420,
+                            "w": 690,
+                            "x": 10,
+                            "y": 180
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_Zep70T3H",
+                        "position": {
+                            "h": 400,
+                            "w": 670,
+                            "x": 20,
+                            "y": 190
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_LCU1Avep",
+                        "position": {
+                            "h": 390,
+                            "w": 670,
+                            "x": 730,
+                            "y": 190
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_E0o5fD4v",
+                        "position": {
+                            "h": 110,
+                            "w": 630,
+                            "x": 730,
+                            "y": 80
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_nxkrzVeP",
+                        "position": {
+                            "h": 80,
+                            "w": 610,
+                            "x": 30,
+                            "y": 80
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_hl2SIMiA",
+                        "position": {
+                            "h": 60,
+                            "w": 1400,
+                            "x": 20,
+                            "y": 10
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_thnvW7j9",
+                        "position": {
+                            "h": 50,
+                            "w": 680,
+                            "x": 720,
+                            "y": 200
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_VGnPjkXs",
+                        "position": {
+                            "h": 50,
+                            "w": 680,
+                            "x": 20,
+                            "y": 200
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_choZY8gc",
+                        "position": {
+                            "h": 410,
+                            "w": 670,
+                            "x": 730,
+                            "y": 730
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_k7umu5kG",
+                        "position": {
+                            "h": 90,
+                            "w": 710,
+                            "x": 710,
+                            "y": 610
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_Kz6q5LEg",
+                        "position": {
+                            "h": 110,
+                            "w": 630,
+                            "x": 730,
+                            "y": 620
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_4g1NeHsn",
+                        "position": {
+                            "h": 460,
+                            "w": 690,
+                            "x": 10,
+                            "y": 710
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_du3vC5sP",
+                        "position": {
+                            "h": 420,
+                            "w": 650,
+                            "x": 30,
+                            "y": 730
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_C7d3gVTJ",
+                        "position": {
+                            "h": 90,
+                            "w": 690,
+                            "x": 10,
+                            "y": 610
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_H8RWrzR1",
+                        "position": {
+                            "h": 110,
+                            "w": 630,
+                            "x": 30,
+                            "y": 620
+                        },
+                        "type": "block"
+                    }
+                ],
+                "type": "absolute"
+            }
+        },
+        "options": {},
+        "tabs": {
+            "items": [
+                {
+                    "label": "New tab",
+                    "layoutId": "layout_1"
+                }
+            ]
+        }
+    }
+}
+  ]]></definition>
+</dashboard>

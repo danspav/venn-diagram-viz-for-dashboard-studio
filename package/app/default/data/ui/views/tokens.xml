@@ -1,0 +1,427 @@
+<dashboard version="2" theme="dark">
+  <label>Tokens</label>
+  <definition><![CDATA[
+{
+    "title": "Tokens",
+    "description": "",
+    "inputs": {},
+    "defaults": {
+        "dataSources": {
+            "ds.search": {
+                "options": {
+                    "queryParameters": {
+                        "earliest": "$global_time.earliest$",
+                        "latest": "$global_time.latest$"
+                    }
+                }
+            },
+            "ds.spl2": {
+                "options": {
+                    "queryParameters": {
+                        "earliest": "$global_time.earliest$",
+                        "latest": "$global_time.latest$"
+                    }
+                }
+            }
+        },
+        "tokens": {
+            "default": {
+                "category": {
+                    "value": "..."
+                },
+                "hostname": {
+                    "value": "Click a dot to populate the token"
+                },
+                "splFilter": {
+                    "value": "..."
+                },
+                "tooltip": {
+                    "value": "...."
+                }
+            }
+        },
+        "visualizations": {
+            "global": {
+                "showProgressBar": true
+            }
+        }
+    },
+    "visualizations": {
+        "viz_4AELpaQR": {
+            "options": {
+                "markdown": "**Selected host:** $hostname$ \n\n**Category:** $category$\n\n**Tooltip:** $tooltip$"
+            },
+            "type": "splunk.markdown"
+        },
+        "viz_E0o5fD4v": {
+            "options": {
+                "markdown": "Clicking a circle segment will generate a token based on **row.splFilter.value** \n\nYou can assign this token under the Interactions menu. \n\nWith this token, you can filter the source data based on the selected circle segment:\n\n$splFilter$"
+            },
+            "type": "splunk.markdown"
+        },
+        "viz_GYDCiUME": {
+            "options": {
+                "rx": 10,
+                "strokeWidth": 0
+            },
+            "type": "splunk.rectangle"
+        },
+        "viz_LCU1Avep": {
+            "dataSources": {
+                "primary": "ds_XO1ddpJ5"
+            },
+            "eventHandlers": [
+                {
+                    "options": {
+                        "tokens": [
+                            {
+                                "key": "row.splFilter.value",
+                                "token": "splFilter"
+                            }
+                        ]
+                    },
+                    "type": "drilldown.setToken"
+                }
+            ],
+            "options": {
+                "animateItems": true,
+                "backgroundColor": "transparent",
+                "categoryColorC": "#dc4e41",
+                "fillCircles": true,
+                "legendPosition": "left",
+                "showCounts": true
+            },
+            "type": "venn_diagram_viz_for_dashboard_studio.venn_diagram_viz_for_dashboard_studio"
+        },
+        "viz_PFpfDylT": {
+            "options": {
+                "fillColor": "#4c4f52",
+                "fillOpacity": 0.7,
+                "rx": 10,
+                "strokeWidth": 0
+            },
+            "type": "splunk.rectangle"
+        },
+        "viz_UzD3hnbx": {
+            "options": {
+                "rx": 10,
+                "strokeWidth": 0
+            },
+            "type": "splunk.rectangle"
+        },
+        "viz_VGnPjkXs": {
+            "options": {
+                "customFontSize": 20,
+                "fontSize": "custom",
+                "markdown": "System Capacity Issues: Context-sensitive Tokens"
+            },
+            "type": "splunk.markdown"
+        },
+        "viz_W68rYFtY": {
+            "containerOptions": {
+                "visibility": {
+                    "hideWhenNoData": true
+                }
+            },
+            "cornerRadius": [
+                10,
+                10,
+                10,
+                10
+            ],
+            "dataSources": {
+                "primary": "ds_HiNswp3T"
+            },
+            "options": {
+                "columnFormat": {
+                    "#": {
+                        "width": 60
+                    },
+                    "category": {
+                        "width": 123
+                    },
+                    "host": {
+                        "width": 102
+                    },
+                    "tooltip": {
+                        "width": 245
+                    },
+                    "value": {
+                        "width": 77
+                    }
+                },
+                "showRowNumbers": true
+            },
+            "type": "splunk.table"
+        },
+        "viz_Zep70T3H": {
+            "dataSources": {
+                "primary": "ds_NPKp0K3D"
+            },
+            "eventHandlers": [
+                {
+                    "options": {
+                        "tokens": [
+                            {
+                                "key": "row.host.value",
+                                "token": "hostname"
+                            },
+                            {
+                                "key": "row.tooltip.value",
+                                "token": "tooltip"
+                            },
+                            {
+                                "key": "row.category.value",
+                                "token": "category"
+                            }
+                        ]
+                    },
+                    "type": "drilldown.setToken"
+                }
+            ],
+            "options": {
+                "animateItems": true,
+                "backgroundColor": "transparent",
+                "fillCircles": true,
+                "legendPosition": "left"
+            },
+            "type": "venn_diagram_viz_for_dashboard_studio.venn_diagram_viz_for_dashboard_studio"
+        },
+        "viz_hl2SIMiA": {
+            "options": {
+                "customFontSize": 36,
+                "fontColor": "#000000",
+                "fontSize": "custom",
+                "markdown": "Token Usage"
+            },
+            "type": "splunk.markdown"
+        },
+        "viz_k2gbbc6x": {
+            "options": {
+                "fillColor": "#4c4f52",
+                "fillOpacity": 0.7,
+                "rx": 10,
+                "strokeWidth": 0
+            },
+            "type": "splunk.rectangle"
+        },
+        "viz_nxkrzVeP": {
+            "options": {
+                "fontColor": "#ffffff",
+                "markdown": "### Tokens\n\nAssign tokens under the Interactions menu - select \"Use predefined token\".\n\nChoose from any of these tokens:\n\n| Token | Description |\n|---|---|\n| `row.splFilter.value` | An SPL filter for the selected segment |\n| `row.category.value` | Category |\n| `row.value.value` | Value |\n| `row.tooltip.value` | Tooltip |\n| `row.<field>.value` | The field from the search results |"
+            },
+            "type": "splunk.markdown"
+        },
+        "viz_thnvW7j9": {
+            "options": {
+                "customFontSize": 20,
+                "fontSize": "custom",
+                "markdown": "Webserver Error Codes: SPL Filter Tokens"
+            },
+            "type": "splunk.markdown"
+        }
+    },
+    "dataSources": {
+        "ds_6PQ9e8Ia": {
+            "name": "Table",
+            "options": {
+                "extend": "ds_NPKp0K3D",
+                "query": "|  eventstats values(category) as category by host\n|  search $splFilter$"
+            },
+            "type": "ds.chain"
+        },
+        "ds_HiNswp3T": {
+            "name": "Table copy 1",
+            "options": {
+                "extend": "ds_XO1ddpJ5",
+                "query": "|  eventstats values(category) as category by host\n|  search $splFilter$"
+            },
+            "type": "ds.chain"
+        },
+        "ds_NPKp0K3D": {
+            "name": "Search_1",
+            "options": {
+                "query": "| makeresults count=1\r\n| eval host=split(\"db-prod-01|cache-prod-02|app-prod-05|web-prod-01|web-prod-02|api-prod-03|worker-prod-01|web-prod-03|web-prod-04|api-prod-01|api-prod-02|worker-prod-02|worker-prod-03|worker-prod-04|batch-prod-01|etl-prod-02|log-prod-01|cache-prod-01|session-prod-01|redis-prod-02|log-prod-02|backup-prod-01|archive-prod-01|nfs-prod-01\", \"|\")\r\n| mvexpand host\r\n| eval in_cpu=if(match(host, \"^(db-prod-01|cache-prod-02|app-prod-05|web-prod-01|web-prod-02|api-prod-03|worker-prod-01|web-prod-03|web-prod-04|api-prod-01|api-prod-02|worker-prod-02|worker-prod-03|worker-prod-04)$\"), 1, 0)\r\n| eval in_mem=if(match(host, \"^(db-prod-01|cache-prod-02|app-prod-05|web-prod-01|web-prod-02|api-prod-03|worker-prod-01|batch-prod-01|etl-prod-02|log-prod-01|cache-prod-01|session-prod-01|redis-prod-02)$\"), 1, 0)\r\n| eval in_disk=if(match(host, \"^(db-prod-01|cache-prod-02|app-prod-05|batch-prod-01|etl-prod-02|log-prod-01|log-prod-02|backup-prod-01|archive-prod-01|nfs-prod-01)$\"), 1, 0)\r\n| eval category=mvappend(\r\n    if(in_cpu=1, \"High CPU\", null()),\r\n    if(in_mem=1, \"High Memory\", null()),\r\n    if(in_disk=1, \"Low Disk Space\", null())\r\n  )\r\n| mvexpand category\r\n| eval value=case(\r\n    category=\"High CPU\", round(random()/2147483647*14)+85,\r\n    category=\"High Memory\", round(random()/2147483647*13)+85,\r\n    category=\"Low Disk Space\", round(random()/2147483647*9)+90\r\n  )\r\n| eval tooltip=case(\r\n    category=\"High CPU\", value . \"% CPU utilization\",\r\n    category=\"High Memory\", value . \"% memory utilization\",\r\n    category=\"Low Disk Space\", value . \"% disk used\"\r\n  )\r\n| table host category value tooltip",
+                "queryParameters": {
+                    "earliest": "-15m",
+                    "latest": "now"
+                }
+            },
+            "type": "ds.search"
+        },
+        "ds_XO1ddpJ5": {
+            "name": "second",
+            "options": {
+                "query": "| makeresults count=7\r\n| streamstats count as row_num\r\n| eval host=\"prodweb00\" . row_num\r\n| eval in_2xx=if(random() % 100 < 65, 1, 0)\r\n| eval in_4xx=if(random() % 100 < 55, 1, 0)\r\n| eval in_5xx=if(random() % 100 < 40, 1, 0)\r\n| eval in_2xx=if(in_2xx=0 AND in_4xx=0 AND in_5xx=0, 1, in_2xx)\r\n| eval category=mvappend(\r\n    if(in_2xx=1, \"2xx Success\", null()),\r\n    if(in_4xx=1, \"4xx Client Error\", null()),\r\n    if(in_5xx=1, \"5xx Server Error\", null())\r\n  )\r\n| mvexpand category\r\n| eval value=case(\r\n    category=\"2xx Success\", round(random()/2147483647*400)+50,\r\n    category=\"4xx Client Error\", round(random()/2147483647*150)+5,\r\n    category=\"5xx Server Error\", round(random()/2147483647*60)+1\r\n  )\r\n| eval tooltip=value . \" requests returned \" . category\r\n| table host category value tooltip",
+                "queryParameters": {
+                    "earliest": "-15m",
+                    "latest": "now"
+                }
+            },
+            "type": "ds.search"
+        }
+    },
+    "layout": {
+        "globalInputs": [],
+        "layoutDefinitions": {
+            "layout_1": {
+                "options": {
+                    "backgroundColor": "transparent",
+                    "backgroundImage": {
+                        "sizeType": "cover",
+                        "src": "/static/app/venn_diagram_viz_for_dashboard_studio/images/background.png",
+                        "x": 0,
+                        "y": 0
+                    },
+                    "display": "auto",
+                    "height": 960,
+                    "width": 1440
+                },
+                "structure": [
+                    {
+                        "item": "viz_k2gbbc6x",
+                        "position": {
+                            "h": 410,
+                            "w": 710,
+                            "x": 710,
+                            "y": 480
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_PFpfDylT",
+                        "position": {
+                            "h": 380,
+                            "w": 690,
+                            "x": 10,
+                            "y": 510
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_UzD3hnbx",
+                        "position": {
+                            "h": 450,
+                            "w": 710,
+                            "x": 710,
+                            "y": 70
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_GYDCiUME",
+                        "position": {
+                            "h": 450,
+                            "w": 690,
+                            "x": 10,
+                            "y": 70
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_Zep70T3H",
+                        "position": {
+                            "h": 320,
+                            "w": 670,
+                            "x": 20,
+                            "y": 80
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_LCU1Avep",
+                        "position": {
+                            "h": 390,
+                            "w": 670,
+                            "x": 730,
+                            "y": 80
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_E0o5fD4v",
+                        "position": {
+                            "h": 110,
+                            "w": 630,
+                            "x": 720,
+                            "y": 530
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_W68rYFtY",
+                        "position": {
+                            "h": 230,
+                            "w": 690,
+                            "x": 720,
+                            "y": 650
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_nxkrzVeP",
+                        "position": {
+                            "h": 350,
+                            "w": 610,
+                            "x": 30,
+                            "y": 520
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_hl2SIMiA",
+                        "position": {
+                            "h": 60,
+                            "w": 1400,
+                            "x": 20,
+                            "y": 10
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_thnvW7j9",
+                        "position": {
+                            "h": 50,
+                            "w": 680,
+                            "x": 730,
+                            "y": 80
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_VGnPjkXs",
+                        "position": {
+                            "h": 50,
+                            "w": 680,
+                            "x": 20,
+                            "y": 80
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_4AELpaQR",
+                        "position": {
+                            "h": 110,
+                            "w": 650,
+                            "x": 30,
+                            "y": 400
+                        },
+                        "type": "block"
+                    }
+                ],
+                "type": "absolute"
+            }
+        },
+        "options": {},
+        "tabs": {
+            "items": [
+                {
+                    "label": "New tab",
+                    "layoutId": "layout_1"
+                }
+            ]
+        }
+    }
+}
+  ]]></definition>
+</dashboard>

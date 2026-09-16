@@ -34,6 +34,10 @@ is dropped.
   the diagram still renders normally with whatever fits.
 - **value** — sizes the dot; optional, defaults to 1 if blank/absent
 - **tooltip** — free text shown on hover for that row
+- **any other columns** — not required, but not discarded either: every
+  extra column your search supplies rides along and becomes a
+  `row.<field>.value` drilldown token, selectable from the dashboard's "On
+  Click" editor (see [Drilldown tokens](#drilldown-tokens) below)
 
 **The same item can span multiple rows.** This is the normal shape of
 `stats ... by item, category` in SPL — a host with two signals naturally
@@ -124,12 +128,13 @@ click payload actually contains. So everything other than the item's id and
 its numeric value rides under the `row.<name>.value` form, including things
 that aren't literally raw SPL columns.
 
-**Three click targets, same in both dots mode and "Show counts" mode:**
+**Three click targets, same in both Entity View and Numeric View (the
+"Style" option):**
 1. **A circle's background** (empty space inside it, on neither a dot nor a
    region's number) — resolves to the SPECIFIC exact region under the
    cursor (an invisible per-region hit-area sits beneath the dots/numbers
-   for exactly this). In "Show counts" mode this is the same target the
-   visible number sits on; in dots mode it's the same background you'd hit
+   for exactly this). In Numeric View this is the same target the visible
+   number sits on; in Entity View it's the same background you'd hit
    between/around dots.
 2. **A circle's true edge / anywhere its hit-area approximation doesn't
    reach** — falls through to the whole-category handler, since the
@@ -137,7 +142,7 @@ that aren't literally raw SPL columns.
    crescent/lens-shaped regions and don't perfectly tile the circle's full
    area. This is "click the border" in practice, without a literal
    dedicated border element.
-3. **A dot** (dots mode only) — sits on top of everything else for
+3. **A dot** (Entity View only) — sits on top of everything else for
    whatever pixels it covers, so it always wins over the region hit-area
    beneath it.
 
@@ -160,8 +165,8 @@ that aren't literally raw SPL columns.
   `row.categoryList.value`, `row.splFilter.value`. Clicking a legend item
   still also toggles that category on/off as before — both happen on the
   same click.
-- **A region** (its number in "Show counts" mode, or its background area in
-  dots mode) — `name` (the category name(s) that region belongs to, e.g.
+- **A region** (its number in Numeric View, or its background area in
+  Entity View) — `name` (the category name(s) that region belongs to, e.g.
   `Category A + Category B`), `value` (the item count shown), 
   `row.totalValue.value` (the sum of those items' own values),
   `row.color.value` (the region's blended color), `row.categoryList.value`,
@@ -220,20 +225,22 @@ anything, since a single row only ever has one category value.
   category plus every overlap it participates in), so no `NOT` clauses are
   added: clicking category A's circle gives just `category="Category A"`.
 
-## "Show counts instead of dots" option
+## "Style" option — Entity View vs. Numeric View
 
 For datasets with too many items to read as individual packed dots, the
-"Show counts instead of dots" checkbox replaces every region's dots with a
-single number — the item count for that exact combination of categories
-(there are up to 7: 3 single-category regions, 3 pairwise overlaps, and the
-center where all 3 overlap). Hovering a number highlights its category
-circle(s) and shows a tooltip with the exact count and total value — this
-is deliberately a tooltip rather than literally magnifying part of the
-diagram, so the tiny center region (all 3 categories overlapping) stays
-just as readable as any other without a different interaction to learn.
-The same per-region hit-area exists (invisibly) in dots mode too — hovering
-background space inside a circle, away from any dot, gives this identical
-region tooltip/click behavior even with the numbers off.
+"Style" dropdown's **Numeric View** option replaces every region's dots
+with a single number — the item count for that exact combination of
+categories (there are up to 7: 3 single-category regions, 3 pairwise
+overlaps, and the center where all 3 overlap). Hovering a number highlights
+its category circle(s) and shows a tooltip with the exact count and total
+value — this is deliberately a tooltip rather than literally magnifying
+part of the diagram, so the tiny center region (all 3 categories
+overlapping) stays just as readable as any other without a different
+interaction to learn. **Entity View** is the default: individually packed
+dots, one per item.
+The same per-region hit-area exists (invisibly) in Entity View too —
+hovering background space inside a circle, away from any dot, gives this
+identical region tooltip/click behavior even with the numbers off.
 
 In the dashboard's "On Click" editor, reference these with `key:
 "row.tooltip.value"` etc. (not a bare `tooltip`) when configuring which

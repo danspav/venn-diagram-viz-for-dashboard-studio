@@ -1,19 +1,11 @@
 <dashboard version="2" theme="dark">
-  <label>Venn Diagram Viz - Examples &amp; Guide</label>
+  <label>Venn Diagram Viz</label>
   <definition><![CDATA[
+
 {
-    "title": "Venn Diagram",
+    "title": "Venn Diagram Viz",
     "description": "",
-    "inputs": {
-        "input_global_trp": {
-            "options": {
-                "defaultValue": "-24h@h,now",
-                "token": "global_time"
-            },
-            "title": "Global Time Range",
-            "type": "input.timerange"
-        }
-    },
+    "inputs": {},
     "defaults": {
         "dataSources": {
             "ds.search": {
@@ -40,9 +32,27 @@
         }
     },
     "visualizations": {
+        "viz_1DK0hIfh": {
+            "options": {
+                "customFontSize": 18,
+                "fontColor": "#000000",
+                "fontSize": "custom",
+                "markdown": "By Daniel Spavin"
+            },
+            "type": "splunk.markdown"
+        },
+        "viz_Bd8SjaUa": {
+            "options": {
+                "fillColor": "#4c4f52",
+                "fillOpacity": 0.7,
+                "rx": 10,
+                "strokeWidth": 0
+            },
+            "type": "splunk.rectangle"
+        },
         "viz_E0o5fD4v": {
             "options": {
-                "markdown": "Clicking a circle segment will generate a token based on **row.splFilter.value** \n\nYou can assign this token under the Interactions menu. \n\nWith this token, you can filter the source data based on the selected circle segment:\n\n$splFilter$"
+                "markdown": "## SPL fields\n\nThe viz reads long-format search results — one row per item-category pair.\n\n| Field | Required | Matched by | Purpose |\n|---|---|---|---|\n| **item** | Yes | First column, or any column not named as below. | The entity id — one dot per item. Can be named anything. |\n| **category** | Yes | Field named _category_ | Which set this row's item belongs to. Up to 3 distinct values across all rows; only the first 3 alphabetically are shown if more appear. |\n| **value** | No | Field named _value_ | Sizes the dot. Defaults to 1 if blank or absent. |\n| **tooltip** | No | Field named _tooltip_ | Free text shown on hover for that row. |\n| **<fields>** | No | any additional fields you want to include.| Create tokens using row.<field>.value under the Interactions menu.|\n\nAll field names are case insensitive.\n"
             },
             "type": "splunk.markdown"
         },
@@ -53,32 +63,13 @@
             },
             "type": "splunk.rectangle"
         },
-        "viz_LCU1Avep": {
-            "dataSources": {
-                "primary": "ds_XO1ddpJ5"
-            },
-            "eventHandlers": [
-                {
-                    "options": {
-                        "tokens": [
-                            {
-                                "key": "row.splFilter.value",
-                                "token": "splFilter2"
-                            }
-                        ]
-                    },
-                    "type": "drilldown.setToken"
-                }
-            ],
+        "viz_M5cE1xx8": {
             "options": {
-                "animateItems": true,
-                "backgroundColor": "transparent",
-                "categoryColorC": "#dc4e41",
-                "fillCircles": true,
-                "legendPosition": "left",
-                "showCounts": true
+                "customFontSize": 18,
+                "fontSize": "custom",
+                "markdown": "### Change Log\n\nVersion 1.0.0\n- Initial Version"
             },
-            "type": "venn_diagram_viz_for_dashboard_studio.venn_diagram_viz_for_dashboard_studio"
+            "type": "splunk.markdown"
         },
         "viz_PFpfDylT": {
             "options": {
@@ -89,8 +80,10 @@
             },
             "type": "splunk.rectangle"
         },
-        "viz_UzD3hnbx": {
+        "viz_TPqqihxf": {
             "options": {
+                "fillColor": "#4c4f52",
+                "fillOpacity": 0.7,
                 "rx": 10,
                 "strokeWidth": 0
             },
@@ -100,46 +93,9 @@
             "options": {
                 "customFontSize": 20,
                 "fontSize": "custom",
-                "markdown": "Webserver Error Codes"
+                "markdown": "Venn Diagram for Dashboard Studio"
             },
             "type": "splunk.markdown"
-        },
-        "viz_W68rYFtY": {
-            "containerOptions": {
-                "visibility": {
-                    "hideWhenNoData": true
-                }
-            },
-            "cornerRadius": [
-                10,
-                10,
-                10,
-                10
-            ],
-            "dataSources": {
-                "primary": "ds_HiNswp3T"
-            },
-            "options": {
-                "columnFormat": {
-                    "#": {
-                        "width": 60
-                    },
-                    "category": {
-                        "width": 123
-                    },
-                    "host": {
-                        "width": 102
-                    },
-                    "tooltip": {
-                        "width": 245
-                    },
-                    "value": {
-                        "width": 77
-                    }
-                },
-                "showRowNumbers": true
-            },
-            "type": "splunk.table"
         },
         "viz_Zep70T3H": {
             "dataSources": {
@@ -166,12 +122,20 @@
             },
             "type": "venn_diagram_viz_for_dashboard_studio.venn_diagram_viz_for_dashboard_studio"
         },
+        "viz_gTmSRZZv": {
+            "options": {
+                "customFontSize": 18,
+                "fontSize": "custom",
+                "markdown": "### Venn Diagram Viz for Dashboard Studio turns a standard 3-set Venn diagram into a correlation tool. \n\nIt's built for triage use cases like security event correlation e.g., hosts hit by failed logins, malware alerts, and firewall blocks, where the actionable insight is which items show up in more than one signal.\n\nDrill-downs are supported natively, with the ability to filter your data set based on the segment of the Venn diagram you clicked."
+            },
+            "type": "splunk.markdown"
+        },
         "viz_hl2SIMiA": {
             "options": {
                 "customFontSize": 36,
                 "fontColor": "#000000",
                 "fontSize": "custom",
-                "markdown": "Token Usage"
+                "markdown": "Venn Diagram Viz for Dashboard Studio"
             },
             "type": "splunk.markdown"
         },
@@ -187,15 +151,7 @@
         "viz_nxkrzVeP": {
             "options": {
                 "fontColor": "#ffffff",
-                "markdown": "### Tokens\n\nAssign tokens under the Interactions menu - select \"Use predefined token\".\n\nChoose from any of these tokens:\n\n| Token | Description |\n|---|---|\n| `row.splFilter.value` | An SPL filter for the selected segment |\n| `row.category.value` | Category |\n| `row.value.value` | Value |\n| `row.tooltip.value` | Tooltip |\n| `row.<field>.value` | The field from the search results |"
-            },
-            "type": "splunk.markdown"
-        },
-        "viz_thnvW7j9": {
-            "options": {
-                "customFontSize": 20,
-                "fontSize": "custom",
-                "markdown": "Webserver Error Codes"
+                "markdown": "## Tokens\n\nAssign tokens under the Interactions menu - select \"Use predefined token\".\n\nChoose from any of these tokens:\n\n| Token | Description |\n|---|---|\n| `row.splFilter.value` | An SPL filter for the selected segment |\n| `row.category.value` | Category |\n| `row.value.value` | Value |\n| `row.tooltip.value` | Tooltip |\n| `row.<field>.value` | The field from the search results |"
             },
             "type": "splunk.markdown"
         }
@@ -220,7 +176,11 @@
         "ds_NPKp0K3D": {
             "name": "Search_1",
             "options": {
-                "query": "| makeresults count=116\r\n| streamstats count as row_num\r\n| eval host=\"host-\" . row_num\r\n| eval in_A=if(row_num<=34 OR (row_num>=84 AND row_num<=93) OR (row_num>=94 AND row_num<=106) OR row_num>=113, 1, 0)\r\n| eval in_B=if((row_num>=35 AND row_num<=55) OR (row_num>=84 AND row_num<=93) OR (row_num>=107 AND row_num<=112) OR row_num>=113, 1, 0)\r\n| eval in_C=if((row_num>=56 AND row_num<=83) OR (row_num>=94 AND row_num<=106) OR (row_num>=107 AND row_num<=112) OR row_num>=113, 1, 0)\r\n| eval category=mvappend(if(in_A=1,\"Apples\",null()), if(in_B=1,\"Bananas\",null()), if(in_C=1,\"Cantalope\",null()))\r\n| mvexpand category\r\n| eval value=round(random()/2147483647*17)+3\r\n| eval tooltip=\"synthetic test row\"\r\n| table host category value tooltip\r\n"
+                "query": "| makeresults count=100\r\n| streamstats count as row_num\r\n| eval host=\"host-\" . if(row_num<10, \"00\", if(row_num<100, \"0\", \"\")) . row_num\r\n| eval in_FL=if(random() % 100 < 65, 1, 0)\r\n| eval in_MW=if(random() % 100 < 55, 1, 0)\r\n| eval in_FW=if(random() % 100 < 40, 1, 0)\r\n| eval in_FL=if(in_FL=0 AND in_MW=0 AND in_FW=0, 1, in_FL)\r\n| eval category=mvappend(\r\n    if(in_FL=1, \"Failed Logins\", null()),\r\n    if(in_MW=1, \"Malware Alert\", null()),\r\n    if(in_FW=1, \"Firewall Block\", null())\r\n  )\r\n| mvexpand category\r\n| eval value=case(\r\n    category=\"Failed Logins\", round(random()/2147483647*47)+3,\r\n    category=\"Malware Alert\", round(random()/2147483647*9)+1,\r\n    category=\"Firewall Block\", round(random()/2147483647*195)+5\r\n  )\r\n| eval tooltip=case(\r\n    category=\"Failed Logins\", value . \" failed login attempts\",\r\n    category=\"Malware Alert\", value . \" malware detection(s)\",\r\n    category=\"Firewall Block\", value . \" blocked outbound connections\"\r\n  )\r\n| table host category value tooltip",
+                "queryParameters": {
+                    "earliest": "-15m",
+                    "latest": "now"
+                }
             },
             "type": "ds.search"
         },
@@ -233,21 +193,19 @@
         }
     },
     "layout": {
-        "globalInputs": [
-            "input_global_trp"
-        ],
+        "globalInputs": [],
         "layoutDefinitions": {
             "layout_1": {
                 "options": {
                     "backgroundColor": "transparent",
                     "backgroundImage": {
-                        "sizeType": "contain",
+                        "sizeType": "cover",
                         "src": "/static/app/venn_diagram_viz_for_dashboard_studio/images/background.png",
                         "x": 0,
                         "y": 0
                     },
                     "display": "auto",
-                    "height": 960,
+                    "height": 1350,
                     "width": 1440
                 },
                 "structure": [
@@ -255,9 +213,9 @@
                         "item": "viz_k2gbbc6x",
                         "position": {
                             "h": 380,
-                            "w": 710,
-                            "x": 710,
-                            "y": 510
+                            "w": 1400,
+                            "x": 20,
+                            "y": 910
                         },
                         "type": "block"
                     },
@@ -265,19 +223,9 @@
                         "item": "viz_PFpfDylT",
                         "position": {
                             "h": 380,
-                            "w": 690,
-                            "x": 10,
+                            "w": 870,
+                            "x": 20,
                             "y": 510
-                        },
-                        "type": "block"
-                    },
-                    {
-                        "item": "viz_UzD3hnbx",
-                        "position": {
-                            "h": 420,
-                            "w": 710,
-                            "x": 710,
-                            "y": 70
                         },
                         "type": "block"
                     },
@@ -285,8 +233,8 @@
                         "item": "viz_GYDCiUME",
                         "position": {
                             "h": 420,
-                            "w": 690,
-                            "x": 10,
+                            "w": 870,
+                            "x": 20,
                             "y": 70
                         },
                         "type": "block"
@@ -295,18 +243,8 @@
                         "item": "viz_Zep70T3H",
                         "position": {
                             "h": 400,
-                            "w": 670,
-                            "x": 20,
-                            "y": 80
-                        },
-                        "type": "block"
-                    },
-                    {
-                        "item": "viz_LCU1Avep",
-                        "position": {
-                            "h": 390,
-                            "w": 670,
-                            "x": 730,
+                            "w": 840,
+                            "x": 40,
                             "y": 80
                         },
                         "type": "block"
@@ -314,20 +252,10 @@
                     {
                         "item": "viz_E0o5fD4v",
                         "position": {
-                            "h": 110,
-                            "w": 630,
-                            "x": 720,
-                            "y": 520
-                        },
-                        "type": "block"
-                    },
-                    {
-                        "item": "viz_W68rYFtY",
-                        "position": {
-                            "h": 240,
-                            "w": 690,
-                            "x": 720,
-                            "y": 640
+                            "h": 360,
+                            "w": 1370,
+                            "x": 40,
+                            "y": 920
                         },
                         "type": "block"
                     },
@@ -335,8 +263,8 @@
                         "item": "viz_nxkrzVeP",
                         "position": {
                             "h": 350,
-                            "w": 610,
-                            "x": 30,
+                            "w": 810,
+                            "x": 40,
                             "y": 520
                         },
                         "type": "block"
@@ -352,22 +280,62 @@
                         "type": "block"
                     },
                     {
-                        "item": "viz_thnvW7j9",
+                        "item": "viz_VGnPjkXs",
                         "position": {
                             "h": 50,
                             "w": 680,
-                            "x": 720,
+                            "x": 50,
                             "y": 80
                         },
                         "type": "block"
                     },
                     {
-                        "item": "viz_VGnPjkXs",
+                        "item": "viz_Bd8SjaUa",
                         "position": {
-                            "h": 50,
-                            "w": 680,
-                            "x": 20,
+                            "h": 420,
+                            "w": 510,
+                            "x": 910,
+                            "y": 70
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_gTmSRZZv",
+                        "position": {
+                            "h": 400,
+                            "w": 480,
+                            "x": 920,
                             "y": 80
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_1DK0hIfh",
+                        "position": {
+                            "h": 30,
+                            "w": 1400,
+                            "x": 30,
+                            "y": 40
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_TPqqihxf",
+                        "position": {
+                            "h": 380,
+                            "w": 510,
+                            "x": 910,
+                            "y": 510
+                        },
+                        "type": "block"
+                    },
+                    {
+                        "item": "viz_M5cE1xx8",
+                        "position": {
+                            "h": 130,
+                            "w": 410,
+                            "x": 950,
+                            "y": 520
                         },
                         "type": "block"
                     }

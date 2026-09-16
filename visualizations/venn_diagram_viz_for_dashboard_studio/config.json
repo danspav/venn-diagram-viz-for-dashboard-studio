@@ -33,15 +33,15 @@
       },
       "fillCircles": {
         "type": "boolean",
-        "default": false
+        "default": true
       },
       "animateItems": {
         "type": "boolean",
-        "default": false
+        "default": true
       },
-      "showCounts": {
-        "type": "boolean",
-        "default": false
+      "style": {
+        "type": "string",
+        "default": "entity"
       },
       "categoryColorA": {
         "type": "string",
@@ -118,9 +118,15 @@
           ],
           [
             {
-              "label": "Show counts instead of dots",
-              "editor": "editor.checkbox",
-              "option": "showCounts"
+              "label": "Style",
+              "editor": "editor.select",
+              "option": "style",
+              "editorProps": {
+                "values": [
+                  { "label": "Entity View", "value": "entity" },
+                  { "label": "Numeric View", "value": "numeric" }
+                ]
+              }
             }
           ]
         ]

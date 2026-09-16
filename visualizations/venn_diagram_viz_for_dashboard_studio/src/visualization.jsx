@@ -2091,7 +2091,7 @@ function VennVisualization() {
     const backgroundColor = options?.backgroundColor || DEFAULT_BACKGROUND;
     const fillCircles = options?.fillCircles === true;
     const animateItems = options?.animateItems === true;
-    const showCounts = options?.showCounts === true;
+    const showCounts = options?.style === 'numeric';
     const labelSize = LABEL_FONT_SIZES[options?.labelSize] ? options.labelSize : DEFAULT_LABEL_SIZE;
     const legendTextColor = pickLegendTextColor(backgroundColor, theme);
     // Positional, not name-based — "category color 1" always means

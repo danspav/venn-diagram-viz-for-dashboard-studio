@@ -17,6 +17,21 @@ export APP_DIRECTORY_NAME=$(basename "$PWD")
 export SPLUNK_APP_DIRECTORY_NAME="${APP_DIRECTORY_NAME//-/_}"
 export VIRTUAL_ENV="true"
 
+# -----------------------------
+# Build mode: ./rebuild.sh [dev|prod] -- defaults to dev (fast, unminified,
+# fine for local iteration against your own Splunk instance). Pass "prod"
+# before packaging anything meant to be installed elsewhere -- a plain dev
+# build ships React's development runtime, which has already caused a real
+# "Cannot set properties of undefined (setting 'key')" failure on a fresh
+# Splunk instance from a stray internal React dev-mode code path.
+BUILD_MODE="${1:-dev}"
+if [ "$BUILD_MODE" != "dev" ] && [ "$BUILD_MODE" != "prod" ]; then
+    echo "Usage: $0 [dev|prod]"
+    echo "  dev  (default) - yarn build, fast, unminified, local iteration only"
+    echo "  prod            - yarn build:prod, minified, safe to package/install"
+    exit 1
+fi
+
 
 echo "Activating virtual environment..."
 source ./.venv/bin/activate
@@ -26,14 +41,19 @@ SOURCE_DIR="$GIT_HOME/$APP_DIRECTORY_NAME/stage/$SPLUNK_APP_DIRECTORY_NAME"
 TARGET_DIR="$SPLUNK_HOME/etc/apps/$SPLUNK_APP_DIRECTORY_NAME"
 
 echo "========================================"
-echo "Building Splunk App: $APP_DIRECTORY_NAME"
+echo "Building Splunk App: $APP_DIRECTORY_NAME ($BUILD_MODE)"
 echo "========================================"
 
 # -----------------------------
 # Step 1: Yarn build
 # -----------------------------
-echo ">> Running yarn build"
-yarn build:prod
+if [ "$BUILD_MODE" = "prod" ]; then
+    echo ">> Running yarn build:prod"
+    yarn build:prod
+else
+    echo ">> Running yarn build"
+    yarn build
+fi
 
 # -----------------------------
 # Step 2: Yarn package
