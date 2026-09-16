@@ -1,7 +1,6 @@
 <dashboard version="2" theme="dark">
   <label>Venn Diagram Viz</label>
   <definition><![CDATA[
-
 {
     "title": "Venn Diagram Viz",
     "description": "",
@@ -126,7 +125,7 @@
             "options": {
                 "customFontSize": 18,
                 "fontSize": "custom",
-                "markdown": "### Venn Diagram Viz for Dashboard Studio turns a standard 3-set Venn diagram into a correlation tool. \n\nIt's built for triage use cases like security event correlation e.g., hosts hit by failed logins, malware alerts, and firewall blocks, where the actionable insight is which items show up in more than one signal.\n\nDrill-downs are supported natively, with the ability to filter your data set based on the segment of the Venn diagram you clicked."
+                "markdown": "### Venn Diagram Viz for Dashboard Studio turns a standard 3-set Venn diagram into a correlation tool. \n\nIt's built for triage use cases like security event correlation e.g., hosts hit by failed logins, malware alerts, and firewall blocks, where the actionable insight is which items show up in more than one signal.\n\n### Tokens\nDrill-downs are supported natively, with the ability to filter your data set based on the segment of the Venn diagram you clicked.\n\n### Interactions\nClick on the legend to show or hide categories to help investigate issues."
             },
             "type": "splunk.markdown"
         },
@@ -302,7 +301,7 @@
                     {
                         "item": "viz_gTmSRZZv",
                         "position": {
-                            "h": 400,
+                            "h": 410,
                             "w": 480,
                             "x": 920,
                             "y": 80
