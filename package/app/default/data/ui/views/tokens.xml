@@ -144,7 +144,7 @@
                         "width": 102
                     },
                     "tooltip": {
-                        "width": 245
+                        "width": 387
                     },
                     "value": {
                         "width": 77
@@ -234,7 +234,7 @@
             "name": "Table copy 1",
             "options": {
                 "extend": "ds_XO1ddpJ5",
-                "query": "|  eventstats values(category) as category by host\n|  search $splFilter$"
+                "query": "| eval category=mvjoin(category, \";\") \n| eventstats values(category) as category by host\n| stats values(*) as * by host\n|  fields - value\n|  search $splFilter$"
             },
             "type": "ds.chain"
         },
@@ -422,6 +422,5 @@
             ]
         }
     }
-}
-  ]]></definition>
+}  ]]></definition>
 </dashboard>
